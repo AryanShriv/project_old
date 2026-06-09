@@ -50,6 +50,8 @@ type AuthContextType = {
     freelancerId: string,
     status: FreelancerAccountStatus,
   ) => Promise<void>;
+  updateProfile: (fields: Record<string, string>) => Promise<void>;
+  refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -62,7 +64,16 @@ type BackendAuthUser = {
   role: "client" | "freelancer" | "admin";
   accountStatus: string;
   managedFreelancerId?: string;
-  profile?: { fullName?: string };
+  profile?: {
+    fullName?: string;
+    bio?: string;
+    headline?: string;
+    avatarUrl?: string;
+    company?: string;
+    website?: string;
+    location?: string;
+    phone?: string;
+  };
 };
 
 type BackendApplication = {
@@ -155,11 +166,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await loadFreelancerStatuses();
         if (rawSession) {
           const parsed = JSON.parse(rawSession) as AuthUser;
-          setUser(parsed);
-          if (parsed.role === "admin") {
-            await loadAdminData();
+          // Validate token by hitting a protected endpoint
+          try {
+            console.log("[Auth] Validating session token on app startup...");
+            const res = await apiRequest<{ user: any }>('/auth/me', { auth: true });
+            console.log("[Auth] Session validated successfully:", res.user?.email);
+            setUser(parsed);
+            if (parsed.role === "admin") {
+              await loadAdminData();
+            }
+          } catch (err) {
+            console.warn("[Auth] Session validation failed. Cleaning up stale session...", err);
+            // Token invalid or user no longer exists – clear stale session
+            await clearTokens();
+            await AsyncStorage.removeItem(SESSION_KEY);
+            setUser(null);
           }
         }
+      } catch (e) {
+        console.error("[Auth] Startup initialization error:", e);
       } finally {
         setIsLoading(false);
       }
@@ -174,6 +199,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = useCallback(
     async (email: string, password: string, intent: AuthRoleIntent) => {
+      const rateLimitKey = `login:${email.toLowerCase().trim()}`;
+      
+      // Check rate limit before attempting login
+      const rateLimit = await checkRateLimit(rateLimitKey);
+      if (!rateLimit.allowed) {
+        return { 
+          ok: false as const, 
+          message: rateLimit.message || "Too many failed attempts. Please try again later." 
+        };
+      }
+
       try {
         const data = await apiRequest<{
           accessToken: string;
@@ -184,11 +220,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           body: { email, password },
         });
         if (data.user.role !== intent) {
+          await recordFailedAttempt(rateLimitKey);
           return { ok: false as const, message: "Account type does not match selected role." };
         }
         if (data.user.accountStatus === "suspended") {
+          await recordFailedAttempt(rateLimitKey);
           return { ok: false as const, message: "Your account is suspended by admin." };
         }
+        
+        // Clear rate limit on successful login
+        await clearRateLimit(rateLimitKey);
+        
         await persistTokens(data.accessToken, data.refreshToken);
         const nextUser: AuthUser = {
           id: data.user.id,
@@ -196,6 +238,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           role: data.user.role,
           name: data.user.profile?.fullName || data.user.email.split("@")[0],
           managedFreelancerId: data.user.managedFreelancerId,
+          profile: data.user.profile,
         };
         await persistSession(nextUser);
         if (nextUser.role === "admin") {
@@ -205,6 +248,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         registerPushToken();
         return { ok: true as const };
       } catch (error) {
+        // Record failed attempt for rate limiting
+        await recordFailedAttempt(rateLimitKey);
         return { ok: false as const, message: (error as Error).message || "Login failed" };
       }
     },
@@ -277,6 +322,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           role: data.user.role,
           name: data.user.profile?.fullName || trimmedName,
           managedFreelancerId: data.user.managedFreelancerId,
+          profile: data.user.profile,
         });
         // Register device token for push notifications (non-blocking).
         registerPushToken();
@@ -312,6 +358,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     [loadAdminData, loadFreelancerStatuses],
   );
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const data = await apiRequest<BackendAuthUser>("/users/me", { auth: true });
+      const nextUser: AuthUser = {
+        id: data.id,
+        email: data.email,
+        role: data.role,
+        name: data.profile?.fullName || data.email.split("@")[0],
+        managedFreelancerId: data.managedFreelancerId,
+        profile: data.profile,
+      };
+      await persistSession(nextUser);
+    } catch (err) {
+      console.warn("[Auth] refreshUser failed:", err);
+    }
+  }, [persistSession]);
+
+  const updateProfile = useCallback(async (fields: Record<string, string>) => {
+    await apiRequest("/users/me", {
+      method: "PATCH",
+      auth: true,
+      body: fields,
+    });
+    await refreshUser();
+  }, [refreshUser]);
+
   const logout = useCallback(async () => {
     // Remove push token before clearing auth so the DELETE request still has a valid token.
     await unregisterPushToken();
@@ -335,6 +407,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       register,
       reviewApplication,
       setFreelancerAccountStatus,
+      updateProfile,
+      refreshUser,
       logout,
     }),
     [
@@ -347,6 +421,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       register,
       reviewApplication,
       setFreelancerAccountStatus,
+      updateProfile,
+      refreshUser,
       logout,
     ],
   );

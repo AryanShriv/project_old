@@ -1,24 +1,26 @@
+import { LoadingScreen } from "@/src/components/LoadingScreen/LoadingScreen";
 import { AuthProvider } from "@/src/context/AuthContext";
+import { ChatProvider } from "@/src/context/ChatContext";
 import { FreelancersProvider } from "@/src/context/FreelancersContext";
 import { RequestsProvider } from "@/src/context/RequestsContext";
 import { ThemeProvider, useTheme } from "@/src/context/ThemeContext";
 import { configureNotificationHandler } from "@/src/services/notificationsService";
 import {
-    DMSans_400Regular,
-    DMSans_500Medium,
-    DMSans_700Bold,
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_700Bold,
 } from "@expo-google-fonts/dm-sans";
 import {
-    Fraunces_400Regular,
-    Fraunces_500Medium,
-    Fraunces_600SemiBold,
-    Fraunces_700Bold,
-    Fraunces_900Black,
+  Fraunces_400Regular,
+  Fraunces_500Medium,
+  Fraunces_600SemiBold,
+  Fraunces_700Bold,
+  Fraunces_900Black,
 } from "@expo-google-fonts/fraunces";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
 import { SavedProvider } from "../src/context/SavedContext";
 
@@ -71,6 +73,26 @@ function RootContent() {
           headerTitleStyle: { fontWeight: "700" },
         }}
       />
+      <Stack.Screen
+        name="help"
+        options={{
+          title: "Help & Support",
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: { fontWeight: "700" },
+        }}
+      />
+      <Stack.Screen
+        name="notifications"
+        options={{
+          title: "Notifications",
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: { fontWeight: "700" },
+        }}
+      />
     </Stack>
   );
 }
@@ -89,9 +111,15 @@ export default function RootLayout() {
     DMSans_700Bold,
   });
 
+  const [appReady, setAppReady] = useState(false);
+
   useEffect(() => {
     if (loaded || error) {
-      SplashScreen.hideAsync();
+      // Give a brief moment for everything to initialize
+      setTimeout(async () => {
+        await SplashScreen.hideAsync();
+        setAppReady(true);
+      }, 100);
     }
   }, [loaded, error]);
 
@@ -101,16 +129,22 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <FreelancersProvider>
-          <SavedProvider>
-            <RequestsProvider>
-            <RootContent />
-            <Toast />
-            </RequestsProvider>
-          </SavedProvider>
-        </FreelancersProvider>
-      </AuthProvider>
+      {!appReady ? (
+        <LoadingScreen />
+      ) : (
+        <AuthProvider>
+          <FreelancersProvider>
+            <SavedProvider>
+              <RequestsProvider>
+                <ChatProvider>
+                  <RootContent />
+                  <Toast />
+                </ChatProvider>
+              </RequestsProvider>
+            </SavedProvider>
+          </FreelancersProvider>
+        </AuthProvider>
+      )}
     </ThemeProvider>
   );
 }

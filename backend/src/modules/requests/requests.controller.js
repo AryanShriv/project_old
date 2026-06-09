@@ -151,8 +151,43 @@ const updateRequestStatus = async (req, res) => {
     if (requestDoc.status === "rejected" && parsed.data.status === "accepted") {
       return sendError(res, "Cannot accept an already rejected request", 400);
     }
+    const previousStatus = requestDoc.status;
     requestDoc.status = parsed.data.status;
     await requestDoc.save();
+
+    if (previousStatus !== "accepted" && parsed.data.status === "accepted") {
+      try {
+        const Conversation = require("../chat/conversation.model");
+        const freelancerProfile = await FreelancerProfile.findById(requestDoc.freelancerId).select("userId");
+        if (freelancerProfile) {
+          const clientId = requestDoc.clientId;
+          const freelancerUserId = freelancerProfile.userId;
+
+          let conversation = await Conversation.findOne({ request: requestDoc._id });
+          if (!conversation) {
+            conversation = await Conversation.create({
+              participants: [clientId, freelancerUserId],
+              request: requestDoc._id,
+            });
+            
+            try {
+              const { getIo } = require("../../config/socketServer");
+              const io = getIo();
+              const populated = await Conversation.findById(conversation._id)
+                .populate("participants", "profile.fullName email profile.avatarUrl role")
+                .lean();
+              io.to(`user:${clientId.toString()}`).emit("chat:new_conversation", populated);
+              io.to(`user:${freelancerUserId.toString()}`).emit("chat:new_conversation", populated);
+            } catch (socketErr) {
+              console.error("Socket error during conversation creation", socketErr);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to auto-create conversation on accept:", err);
+      }
+    }
+
     return sendSuccess(res, requestDoc, "Request status updated");
   }
 

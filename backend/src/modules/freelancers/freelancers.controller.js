@@ -28,6 +28,21 @@ const updateSchema = z
     location: z.string().trim().max(120).optional(),
     responseTime: z.string().trim().max(80).optional(),
     isAvailable: z.boolean().optional(),
+    experience: z.array(
+      z.object({
+        year: z.string().trim().min(1),
+        role: z.string().trim().min(1),
+        company: z.string().trim().min(1),
+        description: z.string().trim().default(""),
+      })
+    ).optional(),
+    portfolio: z.array(
+      z.object({
+        title: z.string().trim().min(1),
+        description: z.string().trim().default(""),
+        link: z.string().trim().url().or(z.string().length(0)).optional(),
+      })
+    ).optional(),
   })
   .refine((payload) => Object.keys(payload).length > 0, { message: "At least one field is required" });
 

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { DiscoverHeader } from "@/src/components/DiscoverHeader/DiscoverHeader";
@@ -19,11 +19,18 @@ const FILTER_MAP: Record<string, string[]> = {
 };
 
 export default function DiscoverScreen() {
-  const { freelancers } = useFreelancers();
+  const { freelancers, refresh: refreshFreelancers } = useFreelancers();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshFreelancers();
+    setIsRefreshing(false);
+  };
 
   const filtered = useMemo(() => {
     let results = freelancers;
@@ -71,6 +78,14 @@ export default function DiscoverScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <FreelancerCard {...item} />}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyText}>

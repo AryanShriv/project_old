@@ -1,14 +1,15 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/src/components/EmptyState/EmptyState";
 import { useAuth } from "@/src/context/AuthContext";
 import { useRequests } from "@/src/context/RequestsContext";
-import { colors } from "@/src/design-system/colors";
+import { useTheme } from "@/src/context/ThemeContext";
 import { spacing } from "@/src/design-system/spacing";
 import type { Request } from "@/src/types/requests";
 
-function statusStyle(status: Request["status"]) {
+function statusStyle(status: Request["status"], colors: any) {
   switch (status) {
     case "accepted":
       return { bg: "rgba(34, 197, 94, 0.12)", fg: "#15803d" };
@@ -22,13 +23,21 @@ function statusStyle(status: Request["status"]) {
 export default function FreelancerInboxScreen() {
   const { user } = useAuth();
   const freelancerPersonaId = user?.managedFreelancerId ?? "";
-  const { requests, updateRequestStatus } = useRequests();
+  const { requests, updateRequestStatus, refreshRequests } = useRequests();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { colors } = useTheme();
 
   const mine = requests.filter((r) => r.freelancerId === freelancerPersonaId);
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshRequests();
+    setIsRefreshing(false);
+  };
+
   if (mine.length === 0) {
     return (
-      <SafeAreaView style={styles.safe} edges={["top"]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={["top"]}>
         <EmptyState
           icon="mail-open-outline"
           title="Inbox is quiet"
@@ -39,10 +48,10 @@ export default function FreelancerInboxScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={["top"]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Inbox</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Inbox</Text>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
           {mine.length} lead{mine.length === 1 ? "" : "s"} for you
         </Text>
       </View>
@@ -51,13 +60,13 @@ export default function FreelancerInboxScreen() {
         data={mine}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
-          const badge = statusStyle(item.status);
+          const badge = statusStyle(item.status, colors);
           const isPending = item.status === "pending";
 
           return (
-            <View style={styles.card}>
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.cardTop}>
-                <Text style={styles.clientName}>
+                <Text style={[styles.clientName, { color: colors.textPrimary }]}>
                   {item.clientName ?? "Client"}
                 </Text>
                 <View style={[styles.badge, { backgroundColor: badge.bg }]}>
@@ -66,17 +75,17 @@ export default function FreelancerInboxScreen() {
                   </Text>
                 </View>
               </View>
-              <Text style={styles.projectTitle}>{item.projectTitle}</Text>
+              <Text style={[styles.projectTitle, { color: colors.textSecondary }]}>{item.projectTitle}</Text>
               {isPending ? (
                 <View style={styles.actions}>
                   <Pressable
-                    style={[styles.btn, styles.btnGhost, styles.btnFirst]}
+                    style={[styles.btn, styles.btnGhost, styles.btnFirst, { borderColor: colors.border, backgroundColor: colors.surface }]}
                     onPress={() => updateRequestStatus(item.id, "rejected")}
                   >
-                    <Text style={styles.btnGhostText}>Decline</Text>
+                    <Text style={[styles.btnGhostText, { color: colors.textSecondary }]}>Decline</Text>
                   </Pressable>
                   <Pressable
-                    style={[styles.btn, styles.btnPrimary]}
+                    style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.primary }]}
                     onPress={() => updateRequestStatus(item.id, "accepted")}
                   >
                     <Text style={styles.btnPrimaryText}>Accept</Text>
@@ -87,6 +96,14 @@ export default function FreelancerInboxScreen() {
           );
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       />
     </SafeAreaView>
   );
@@ -95,7 +112,6 @@ export default function FreelancerInboxScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     paddingHorizontal: spacing.sm,
@@ -105,24 +121,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: colors.textPrimary,
     letterSpacing: -0.4,
   },
   subtitle: {
     marginTop: 4,
     fontSize: 15,
-    color: colors.textMuted,
   },
   list: {
     padding: spacing.sm,
     paddingBottom: spacing.xl,
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.border,
     marginBottom: 12,
     shadowColor: "#000",
     shadowOpacity: 0.04,
@@ -139,7 +151,6 @@ const styles = StyleSheet.create({
   clientName: {
     fontSize: 17,
     fontWeight: "600",
-    color: colors.textPrimary,
     flex: 1,
     marginRight: spacing.sm,
   },
@@ -155,7 +166,6 @@ const styles = StyleSheet.create({
   },
   projectTitle: {
     fontSize: 15,
-    color: colors.textSecondary,
     lineHeight: 22,
   },
   actions: {
@@ -176,16 +186,12 @@ const styles = StyleSheet.create({
   },
   btnGhost: {
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
   btnGhostText: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.textSecondary,
   },
   btnPrimary: {
-    backgroundColor: colors.primary,
   },
   btnPrimaryText: {
     fontSize: 14,

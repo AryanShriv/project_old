@@ -5,6 +5,17 @@ export type AuthUser = {
   role: "client" | "freelancer" | "admin";
   /** Linked public freelancer profile id (freelancer role only) */
   managedFreelancerId?: string;
+  /** Extended profile fields */
+  profile?: {
+    fullName?: string;
+    bio?: string;
+    headline?: string;
+    avatarUrl?: string;
+    company?: string;
+    website?: string;
+    location?: string;
+    phone?: string;
+  };
 };
 
 export type AuthRoleIntent = "client" | "freelancer" | "admin";

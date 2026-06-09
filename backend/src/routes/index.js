@@ -8,6 +8,7 @@ const adminRoutes = require("../modules/admin/admin.routes");
 const applicationRoutes = require("../modules/applications/applications.routes");
 const notificationRoutes = require("../modules/notifications/notifications.routes");
 const availabilityRoutes = require("../modules/availability/availability.routes");
+const chatRoutes = require("../modules/chat/chat.routes");
 const { sendSuccess } = require("../utils/http");
 
 const router = express.Router();
@@ -22,5 +23,6 @@ router.use("/admin", adminRoutes);
 router.use("/applications", applicationRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/availability", availabilityRoutes);
+router.use("/chat", chatRoutes);
 
 module.exports = router;

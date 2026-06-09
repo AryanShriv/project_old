@@ -6,6 +6,10 @@ const profileSchema = new mongoose.Schema(
     bio: { type: String, trim: true, default: "" },
     headline: { type: String, trim: true, default: "" },
     avatarUrl: { type: String, trim: true, default: "" },
+    company: { type: String, trim: true, default: "" },
+    website: { type: String, trim: true, default: "" },
+    location: { type: String, trim: true, default: "" },
+    phone: { type: String, trim: true, default: "" },
   },
   { _id: false }
 );

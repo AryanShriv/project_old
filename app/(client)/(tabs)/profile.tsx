@@ -1,18 +1,23 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { ComponentProps } from "react";
-import React, { useMemo } from "react";
 import type { Href } from "expo-router";
 import { router } from "expo-router";
+import type { ComponentProps } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  Switch,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Linking,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -20,7 +25,7 @@ import { ThemeColors } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { spacing } from "@/src/design-system/spacing";
 
-const rows: {
+const settingsRows: {
   id: string;
   label: string;
   icon: ComponentProps<typeof Ionicons>["name"];
@@ -31,10 +36,77 @@ const rows: {
 ];
 
 export default function ClientProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile, refreshUser } = useAuth();
   const { colors, toggleTheme, isDark } = useTheme();
 
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [formData, setFormData] = useState({
+    fullName: user?.name ?? "",
+    headline: user?.profile?.headline ?? "",
+    bio: user?.profile?.bio ?? "",
+    company: user?.profile?.company ?? "",
+    website: user?.profile?.website ?? "",
+    location: user?.profile?.location ?? "",
+    phone: user?.profile?.phone ?? "",
+  });
+
+  // Sync form when user object updates (e.g. after refreshUser)
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        fullName: user.name ?? "",
+        headline: user.profile?.headline ?? "",
+        bio: user.profile?.bio ?? "",
+        company: user.profile?.company ?? "",
+        website: user.profile?.website ?? "",
+        location: user.profile?.location ?? "",
+        phone: user.profile?.phone ?? "",
+      });
+    }
+  }, [user]);
+
+  // Refresh user profile from server on mount
+  useEffect(() => {
+    if (user) {
+      refreshUser();
+    }
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const payload: Record<string, string> = {};
+      if (formData.fullName.trim()) payload.fullName = formData.fullName.trim();
+      if (formData.headline.trim()) payload.headline = formData.headline.trim();
+      payload.bio = formData.bio.trim();
+      payload.company = formData.company.trim();
+      payload.website = formData.website.trim();
+      payload.location = formData.location.trim();
+      payload.phone = formData.phone.trim();
+
+      await updateProfile(payload);
+
+      Toast.show({
+        type: "success",
+        text1: "Profile updated",
+        text2: "Your changes have been saved",
+      });
+
+      setIsEditing(false);
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: "Failed to update profile",
+        text2: (error as Error).message || "Please try again",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (!user || user.role !== "client") {
     return (
@@ -112,12 +184,19 @@ export default function ClientProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+        {/* ─── Hero / Avatar ─── */}
         <View style={styles.hero}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
@@ -130,12 +209,196 @@ export default function ClientProfileScreen() {
             </Text>
           </View>
           <Text style={styles.name}>{user.name}</Text>
+          {user.profile?.headline ? (
+            <Text style={styles.headline}>{user.profile.headline}</Text>
+          ) : null}
           <Text style={styles.email}>{user.email}</Text>
-          <Pressable style={styles.editBtn}>
-            <Text style={styles.editBtnText}>Edit profile</Text>
-          </Pressable>
+
+          {!isEditing && (
+            <Pressable
+              style={styles.editBtn}
+              onPress={() => setIsEditing(true)}
+            >
+              <Ionicons name="pencil" size={16} color={colors.primary} />
+              <Text style={styles.editBtnText}>Edit profile</Text>
+            </Pressable>
+          )}
         </View>
 
+        {/* ─── Profile Summary (read-only) ─── */}
+        {!isEditing && (
+          <View style={styles.summaryCard}>
+            {user.profile?.bio ? (
+              <View style={styles.summaryRow}>
+                <Ionicons name="person-outline" size={18} color={colors.primary} />
+                <View style={styles.summaryTextBlock}>
+                  <Text style={styles.summaryLabel}>About</Text>
+                  <Text style={styles.summaryValue}>{user.profile.bio}</Text>
+                </View>
+              </View>
+            ) : null}
+            {user.profile?.company ? (
+              <View style={styles.summaryRow}>
+                <Ionicons name="business-outline" size={18} color={colors.primary} />
+                <View style={styles.summaryTextBlock}>
+                  <Text style={styles.summaryLabel}>Company</Text>
+                  <Text style={styles.summaryValue}>{user.profile.company}</Text>
+                </View>
+              </View>
+            ) : null}
+            {user.profile?.location ? (
+              <View style={styles.summaryRow}>
+                <Ionicons name="location-outline" size={18} color={colors.primary} />
+                <View style={styles.summaryTextBlock}>
+                  <Text style={styles.summaryLabel}>Location</Text>
+                  <Text style={styles.summaryValue}>{user.profile.location}</Text>
+                </View>
+              </View>
+            ) : null}
+            {user.profile?.website ? (
+              <View style={styles.summaryRow}>
+                <Ionicons name="globe-outline" size={18} color={colors.primary} />
+                <View style={styles.summaryTextBlock}>
+                  <Text style={styles.summaryLabel}>Website</Text>
+                  <Text
+                    style={[styles.summaryValue, { color: colors.primary }]}
+                    onPress={() => Linking.openURL(user.profile!.website!)}
+                  >
+                    {user.profile.website}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+            {user.profile?.phone ? (
+              <View style={styles.summaryRow}>
+                <Ionicons name="call-outline" size={18} color={colors.primary} />
+                <View style={styles.summaryTextBlock}>
+                  <Text style={styles.summaryLabel}>Phone</Text>
+                  <Text style={styles.summaryValue}>{user.profile.phone}</Text>
+                </View>
+              </View>
+            ) : null}
+            {!user.profile?.bio && !user.profile?.company && !user.profile?.location && !user.profile?.website && !user.profile?.phone ? (
+              <View style={styles.summaryRow}>
+                <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
+                <Text style={[styles.summaryValue, { color: colors.textMuted }]}>
+                  Tap "Edit profile" to add your details
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        )}
+
+        {/* ─── Edit Form ─── */}
+        {isEditing && (
+          <View style={styles.formSection}>
+            <Text style={styles.sectionLabel}>Edit Profile</Text>
+
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Your full name"
+              placeholderTextColor={colors.textMuted}
+              value={formData.fullName}
+              onChangeText={(text) =>
+                setFormData({ ...formData, fullName: text })
+              }
+            />
+
+            <Text style={styles.label}>Headline</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. CEO at Acme Corp"
+              placeholderTextColor={colors.textMuted}
+              value={formData.headline}
+              onChangeText={(text) =>
+                setFormData({ ...formData, headline: text })
+              }
+            />
+
+            <Text style={styles.label}>About</Text>
+            <TextInput
+              style={[styles.input, styles.textarea]}
+              placeholder="Tell freelancers about yourself and your business"
+              placeholderTextColor={colors.textMuted}
+              value={formData.bio}
+              onChangeText={(text) =>
+                setFormData({ ...formData, bio: text })
+              }
+              multiline
+            />
+
+            <Text style={styles.label}>Company</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Acme Corporation"
+              placeholderTextColor={colors.textMuted}
+              value={formData.company}
+              onChangeText={(text) =>
+                setFormData({ ...formData, company: text })
+              }
+            />
+
+            <Text style={styles.label}>Website</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="https://yourcompany.com"
+              placeholderTextColor={colors.textMuted}
+              value={formData.website}
+              onChangeText={(text) =>
+                setFormData({ ...formData, website: text })
+              }
+              keyboardType="url"
+              autoCapitalize="none"
+            />
+
+            <Text style={styles.label}>Location</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. San Francisco, CA"
+              placeholderTextColor={colors.textMuted}
+              value={formData.location}
+              onChangeText={(text) =>
+                setFormData({ ...formData, location: text })
+              }
+            />
+
+            <Text style={styles.label}>Phone</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="+1 (555) 123-4567"
+              placeholderTextColor={colors.textMuted}
+              value={formData.phone}
+              onChangeText={(text) =>
+                setFormData({ ...formData, phone: text })
+              }
+              keyboardType="phone-pad"
+            />
+
+            <View style={styles.actions}>
+              <Pressable
+                style={[styles.btn, styles.btnCancel]}
+                onPress={() => setIsEditing(false)}
+                disabled={isSaving}
+              >
+                <Text style={styles.btnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.btn, styles.btnSave, isSaving && styles.btnDisabled]}
+                onPress={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.btnSaveText}>Save Changes</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {/* ─── Freelancing ─── */}
         <Text style={styles.sectionLabel}>Freelancing</Text>
         <View style={styles.card}>
           <Pressable
@@ -166,6 +429,7 @@ export default function ClientProfileScreen() {
           </Pressable>
         </View>
 
+        {/* ─── Account Settings ─── */}
         <Text style={styles.sectionLabel}>Account</Text>
         <View style={styles.card}>
           {/* Theme Toggle Row */}
@@ -188,13 +452,17 @@ export default function ClientProfileScreen() {
             />
           </View>
 
-          {rows.map((row, index) => (
+          {settingsRows.map((row, index) => (
             <Pressable
               key={row.id}
-              style={[styles.row, index < rows.length - 1 && styles.rowBorder]}
+              style={[styles.row, index < settingsRows.length - 1 && styles.rowBorder]}
               onPress={() => {
+                if (row.id === "notif") {
+                  router.push("/notifications" as Href);
+                  return;
+                }
                 if (row.id === "help") {
-                  Linking.openURL("https://expo.dev").catch(() => undefined);
+                  router.push("/help" as Href);
                   return;
                 }
                 if (row.id === "terms") {
@@ -227,6 +495,7 @@ export default function ClientProfileScreen() {
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -335,10 +604,16 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textPrimary,
       letterSpacing: -0.3,
     },
+    headline: {
+      marginTop: 4,
+      fontSize: 15,
+      color: colors.textSecondary,
+      textAlign: "center",
+    },
     email: {
       marginTop: 6,
       fontSize: 15,
-      color: colors.textSecondary,
+      color: colors.textMuted,
     },
     editBtn: {
       marginTop: spacing.md,
@@ -348,11 +623,54 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.surface,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
     },
     editBtnText: {
       fontSize: 14,
       fontWeight: "600",
       color: colors.primary,
+    },
+    // ─── Summary card (read-only profile info) ───
+    summaryCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    summaryRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      paddingVertical: 10,
+      gap: spacing.sm,
+    },
+    summaryTextBlock: {
+      flex: 1,
+    },
+    summaryLabel: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.textMuted,
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+      marginBottom: 2,
+    },
+    summaryValue: {
+      fontSize: 15,
+      color: colors.textPrimary,
+      lineHeight: 22,
+    },
+    // ─── Edit form ───
+    formSection: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: spacing.md,
+      marginBottom: spacing.lg,
     },
     sectionLabel: {
       fontSize: 13,
@@ -364,6 +682,60 @@ const createStyles = (colors: ThemeColors) =>
       marginTop: spacing.sm,
       marginLeft: 4,
     },
+    label: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.textSecondary,
+      marginBottom: 6,
+      marginTop: spacing.sm,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      padding: spacing.sm,
+      fontSize: 14,
+      color: colors.textPrimary,
+      backgroundColor: colors.background,
+    },
+    textarea: {
+      height: 100,
+      textAlignVertical: "top",
+    },
+    actions: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginTop: spacing.lg,
+    },
+    btn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: radius.md,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    btnCancel: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    btnCancelText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.textSecondary,
+    },
+    btnSave: {
+      backgroundColor: colors.primary,
+    },
+    btnSaveText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: "#fff",
+    },
+    btnDisabled: {
+      opacity: 0.6,
+    },
+    // ─── Settings cards ───
     card: {
       backgroundColor: colors.surface,
       borderRadius: radius.md,

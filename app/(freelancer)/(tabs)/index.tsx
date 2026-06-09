@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
 import { useFreelancers } from "@/src/context/FreelancersContext";
 import { useRequests } from "@/src/context/RequestsContext";
-import { colors } from "@/src/design-system/colors";
+import { useTheme } from "@/src/context/ThemeContext";
 import { radius } from "@/src/design-system/radius";
 import { minTapTarget, spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
@@ -16,6 +16,7 @@ export default function FreelancerDashboardScreen() {
   const { freelancers } = useFreelancers();
   const freelancerPersonaId = user?.managedFreelancerId ?? "";
   const { requests } = useRequests();
+  const { colors } = useTheme();
 
   const me = freelancers.find((f) => f.id === freelancerPersonaId);
   const mine = requests.filter((r) => r.freelancerId === freelancerPersonaId);
@@ -24,45 +25,45 @@ export default function FreelancerDashboardScreen() {
   const rejected = mine.filter((r) => r.status === "rejected").length;
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.kicker}>Freelancer</Text>
-        <Text style={styles.title}>Hello{me ? `, ${me.name.split(" ")[0]}` : ""}</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.kicker, { color: colors.textMuted }]}>Freelancer</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Hello{me ? `, ${me.name.split(" ")[0]}` : ""}</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           {me?.title ?? "Your workspace"} · manage incoming client leads
         </Text>
 
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.stat}>
-            <Text style={styles.statValue}>{pending}</Text>
-            <Text style={styles.statLabel}>Pending</Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>{pending}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Pending</Text>
           </View>
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
           <View style={styles.stat}>
-            <Text style={styles.statValue}>{accepted}</Text>
-            <Text style={styles.statLabel}>Won</Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>{accepted}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Won</Text>
           </View>
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
           <View style={styles.stat}>
-            <Text style={styles.statValue}>{rejected}</Text>
-            <Text style={styles.statLabel}>Declined</Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>{rejected}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Declined</Text>
           </View>
         </View>
 
-        <Text style={styles.sectionLabel}>Quick actions</Text>
+        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Quick actions</Text>
         <Pressable
-          style={styles.actionCard}
+          style={[styles.actionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => router.push("/(freelancer)/(tabs)/inbox")}
         >
-          <View style={styles.actionIcon}>
+          <View style={[styles.actionIcon, { backgroundColor: colors.primaryMuted }]}>
             <Ionicons name="mail-unread" size={22} color={colors.primary} />
           </View>
           <View style={styles.actionText}>
-            <Text style={styles.actionTitle}>Review inbox</Text>
-            <Text style={styles.actionHint}>
+            <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>Review inbox</Text>
+            <Text style={[styles.actionHint, { color: colors.textMuted }]}>
               Accept or decline new consultation leads
             </Text>
           </View>
@@ -70,24 +71,24 @@ export default function FreelancerDashboardScreen() {
         </Pressable>
 
         <Pressable
-          style={styles.actionCard}
+          style={[styles.actionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => router.push("/(freelancer)/(tabs)/schedule")}
         >
-          <View style={styles.actionIcon}>
+          <View style={[styles.actionIcon, { backgroundColor: colors.primaryMuted }]}>
             <Ionicons name="time" size={22} color={colors.primary} />
           </View>
           <View style={styles.actionText}>
-            <Text style={styles.actionTitle}>Availability</Text>
-            <Text style={styles.actionHint}>
+            <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>Availability</Text>
+            <Text style={[styles.actionHint, { color: colors.textMuted }]}>
               Set your weekly hours for intro calls
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
         </Pressable>
 
-        <View style={styles.tip}>
+        <View style={[styles.tip, { backgroundColor: colors.primaryMuted }]}>
           <Ionicons name="information-circle" size={20} color={colors.primary} />
-          <Text style={styles.tipText}>
+          <Text style={[styles.tipText, { color: colors.textSecondary }]}>
             Applications are reviewed by admin. If your account is suspended,
             freelancer access is blocked until reactivated.
           </Text>
@@ -100,7 +101,6 @@ export default function FreelancerDashboardScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   content: {
     padding: spacing.md,
@@ -108,27 +108,22 @@ const styles = StyleSheet.create({
   },
   kicker: {
     ...typography.overline,
-    color: colors.textMuted,
   },
   title: {
     ...typography.displaySmall,
     marginTop: spacing.xxs,
-    color: colors.textPrimary,
   },
   subtitle: {
     ...typography.body,
     marginTop: spacing.xs,
-    color: colors.textSecondary,
     lineHeight: 24,
   },
   statsRow: {
     marginTop: spacing.lg,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
   },
@@ -138,31 +133,25 @@ const styles = StyleSheet.create({
   },
   statValue: {
     ...typography.displaySmall,
-    color: colors.textPrimary,
   },
   statLabel: {
     ...typography.label,
     marginTop: spacing.xxs,
-    color: colors.textMuted,
   },
   statDivider: {
     width: StyleSheet.hairlineWidth,
     alignSelf: "stretch",
-    backgroundColor: colors.divider,
   },
   sectionLabel: {
     ...typography.overline,
     marginTop: spacing.lg,
     marginBottom: spacing.md,
-    color: colors.textMuted,
   },
   actionCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.md,
     marginBottom: spacing.sm,
     minHeight: minTapTarget, // Accessibility: 44pt minimum
@@ -171,7 +160,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: radius.sm,
-    backgroundColor: colors.primaryMuted,
     alignItems: "center",
     justifyContent: "center",
     marginRight: spacing.md,
@@ -182,12 +170,10 @@ const styles = StyleSheet.create({
   },
   actionTitle: {
     ...typography.bodyMedium,
-    color: colors.textPrimary,
   },
   actionHint: {
     ...typography.body,
     marginTop: spacing.xxs,
-    color: colors.textMuted,
     lineHeight: 22,
   },
   tip: {
@@ -195,14 +181,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginTop: spacing.md,
     padding: spacing.md,
-    backgroundColor: colors.primaryMuted,
     borderRadius: radius.md,
   },
   tipText: {
     ...typography.body,
     flex: 1,
     marginLeft: spacing.sm,
-    color: colors.textSecondary,
     lineHeight: 24,
   },
 });

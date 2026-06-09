@@ -3,10 +3,11 @@ import { Tabs } from "expo-router";
 import { Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors } from "@/src/design-system/colors";
+import { useTheme } from "@/src/context/ThemeContext";
 
 export default function AdminTabsLayout() {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
 
   return (
     <Tabs
@@ -16,9 +17,9 @@ export default function AdminTabsLayout() {
         tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: "rgba(255, 255, 255, 0.92)",
+          backgroundColor: isDark ? "rgba(15, 23, 42, 0.92)" : "rgba(255, 255, 255, 0.92)",
           borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: "rgba(0,0,0,0.06)",
+          borderTopColor: colors.divider,
           elevation: 0,
           paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 6),

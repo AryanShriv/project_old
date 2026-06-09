@@ -184,4 +184,23 @@ const logout = async (req, res) => {
   return sendSuccess(res, null, "Logged out");
 };
 
-module.exports = { register, login, refresh, logout };
+const me = async (req, res) => {
+  const userId = req.auth?.sub;
+  if (!userId) {
+    return sendError(res, "Unauthorized", 401);
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return sendError(res, "Unauthorized – user no longer exists", 401);
+  }
+
+  if (user.accountStatus === "suspended") {
+    return sendError(res, "Account is suspended", 403);
+  }
+
+  const authUser = await buildAuthUserPayload(user);
+  return sendSuccess(res, { user: authUser }, "Authenticated");
+};
+
+module.exports = { register, login, refresh, logout, me };

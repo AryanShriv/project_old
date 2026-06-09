@@ -4,10 +4,12 @@ import { Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "@/src/context/ThemeContext";
+import { useChat } from "@/src/context/ChatContext";
 
 export default function ClientTabsLayout() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
+  const { totalUnreadCount } = useChat();
 
   return (
     <Tabs
@@ -58,6 +60,17 @@ export default function ClientTabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="document-text" size={size} color={color} />
           ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: "Messages",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubbles" size={size} color={color} />
+          ),
+          tabBarBadge: totalUnreadCount > 0 ? totalUnreadCount : undefined,
         }}
       />
 

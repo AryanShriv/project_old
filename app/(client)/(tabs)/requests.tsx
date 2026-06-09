@@ -1,12 +1,13 @@
 import type { Href } from "expo-router";
 import { router } from "expo-router";
-import { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
     FlatList,
     Pressable,
+    RefreshControl,
     StyleSheet,
     Text,
-    View,
+    View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -36,9 +37,16 @@ function statusStyle(status: Request["status"], colors: ThemeColors) {
 export default function ClientRequestsScreen() {
   const { user } = useAuth();
   const { freelancers } = useFreelancers();
-  const { requests } = useRequests();
+  const { requests, refreshRequests } = useRequests();
   const { colors } = useTheme();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshRequests();
+    setIsRefreshing(false);
+  };
 
   const getFreelancer = (id: string) => freelancers.find((f) => f.id === id);
 
@@ -113,6 +121,14 @@ export default function ClientRequestsScreen() {
           );
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       />
     </SafeAreaView>
   );

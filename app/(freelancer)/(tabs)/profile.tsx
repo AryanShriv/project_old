@@ -2,15 +2,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import type { Href } from "expo-router";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
-    View,
+    View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
@@ -39,12 +41,31 @@ export default function FreelancerProfileTabScreen() {
   const [formData, setFormData] = useState({
     fullName: me?.name ?? "",
     headline: me?.title ?? "",
-    bio: "",
+    bio: me?.tagline ?? "",
     hourlyRate: me?.rate ? parseInt(me.rate.replace(/\D/g, "")) : 0,
     location: "",
-    yearsExperience: 0,
+    yearsExperience: me?.yearsExperience ? parseInt(me.yearsExperience) : 0,
     skills: me?.skills?.join(", ") ?? "",
+    experience: me?.experience ?? [],
+    portfolio: me?.portfolio ?? [],
   });
+
+  // Track dynamic changes when 'me' object changes/loads
+  useEffect(() => {
+    if (me) {
+      setFormData({
+        fullName: me.name ?? "",
+        headline: me.title ?? "",
+        bio: me.tagline ?? "",
+        hourlyRate: me.rate ? parseInt(me.rate.replace(/\D/g, "")) : 0,
+        location: "",
+        yearsExperience: me.yearsExperience ? parseInt(me.yearsExperience) : 0,
+        skills: me.skills?.join(", ") ?? "",
+        experience: me.experience ?? [],
+        portfolio: me.portfolio ?? [],
+      });
+    }
+  }, [me]);
 
   const handleSave = async () => {
     if (!personaId) return;
@@ -62,6 +83,17 @@ export default function FreelancerProfileTabScreen() {
           .split(",")
           .map((s) => s.trim())
           .filter((s) => s.length > 0),
+        experience: formData.experience.map((exp) => ({
+          year: exp.year.trim(),
+          role: exp.role.trim(),
+          company: exp.company.trim(),
+          description: exp.description.trim(),
+        })),
+        portfolio: formData.portfolio.map((p) => ({
+          title: p.title.trim(),
+          description: p.description.trim(),
+          link: p.image.trim(),
+        })),
       };
 
       await apiRequest(`/freelancers/${personaId}`, {
@@ -92,11 +124,17 @@ export default function FreelancerProfileTabScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.header}>
           <View>
             <Text style={styles.kicker}>Signed in as freelancer</Text>
@@ -211,7 +249,7 @@ export default function FreelancerProfileTabScreen() {
 
             <Text style={styles.label}>Skills (comma-separated)</Text>
             <TextInput
-              style={[styles.input, styles.textarea]}
+              style={[styles.input, styles.textarea, { height: 60 }]}
               placeholder="React, TypeScript, Node.js"
               placeholderTextColor={colors.textMuted}
               value={formData.skills}
@@ -220,6 +258,155 @@ export default function FreelancerProfileTabScreen() {
               }
               multiline
             />
+
+            {/* Experience Sub-form */}
+            <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Work History</Text>
+            {formData.experience.map((exp, index) => (
+              <View key={exp.id || `exp-${index}`} style={styles.itemEditorCard}>
+                <View style={styles.itemEditorHeader}>
+                  <Text style={styles.itemEditorTitle}>Job #{index + 1}</Text>
+                  <Pressable
+                    onPress={() => {
+                      const updated = [...formData.experience];
+                      updated.splice(index, 1);
+                      setFormData({ ...formData, experience: updated });
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#FF4D4D" />
+                  </Pressable>
+                </View>
+                
+                <TextInput
+                  style={[styles.input, styles.smallInput]}
+                  placeholder="Years (e.g. 2021 - Present)"
+                  placeholderTextColor={colors.textMuted}
+                  value={exp.year}
+                  onChangeText={(text) => {
+                    const updated = [...formData.experience];
+                    updated[index] = { ...exp, year: text };
+                    setFormData({ ...formData, experience: updated });
+                  }}
+                />
+                <TextInput
+                  style={[styles.input, styles.smallInput]}
+                  placeholder="Role (e.g. Senior Frontend Engineer)"
+                  placeholderTextColor={colors.textMuted}
+                  value={exp.role}
+                  onChangeText={(text) => {
+                    const updated = [...formData.experience];
+                    updated[index] = { ...exp, role: text };
+                    setFormData({ ...formData, experience: updated });
+                  }}
+                />
+                <TextInput
+                  style={[styles.input, styles.smallInput]}
+                  placeholder="Company (e.g. Google)"
+                  placeholderTextColor={colors.textMuted}
+                  value={exp.company}
+                  onChangeText={(text) => {
+                    const updated = [...formData.experience];
+                    updated[index] = { ...exp, company: text };
+                    setFormData({ ...formData, experience: updated });
+                  }}
+                />
+                <TextInput
+                  style={[styles.input, styles.smallTextarea]}
+                  placeholder="Job Description..."
+                  placeholderTextColor={colors.textMuted}
+                  value={exp.description}
+                  onChangeText={(text) => {
+                    const updated = [...formData.experience];
+                    updated[index] = { ...exp, description: text };
+                    setFormData({ ...formData, experience: updated });
+                  }}
+                  multiline
+                />
+              </View>
+            ))}
+            <Pressable
+              style={styles.addItemBtn}
+              onPress={() => {
+                setFormData({
+                  ...formData,
+                  experience: [
+                    ...formData.experience,
+                    { id: `new-exp-${Date.now()}`, year: "", role: "", company: "", description: "" }
+                  ]
+                });
+              }}
+            >
+              <Ionicons name="add" size={16} color={colors.primary} />
+              <Text style={styles.addItemBtnText}>Add Job Experience</Text>
+            </Pressable>
+
+            {/* Portfolio / Notable Work Sub-form */}
+            <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Notable Work / Portfolio</Text>
+            {formData.portfolio.map((p, index) => (
+              <View key={p.id || `portfolio-${index}`} style={styles.itemEditorCard}>
+                <View style={styles.itemEditorHeader}>
+                  <Text style={styles.itemEditorTitle}>Project #{index + 1}</Text>
+                  <Pressable
+                    onPress={() => {
+                      const updated = [...formData.portfolio];
+                      updated.splice(index, 1);
+                      setFormData({ ...formData, portfolio: updated });
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#FF4D4D" />
+                  </Pressable>
+                </View>
+                
+                <TextInput
+                  style={[styles.input, styles.smallInput]}
+                  placeholder="Project Title"
+                  placeholderTextColor={colors.textMuted}
+                  value={p.title}
+                  onChangeText={(text) => {
+                    const updated = [...formData.portfolio];
+                    updated[index] = { ...p, title: text };
+                    setFormData({ ...formData, portfolio: updated });
+                  }}
+                />
+                <TextInput
+                  style={[styles.input, styles.smallTextarea]}
+                  placeholder="Description"
+                  placeholderTextColor={colors.textMuted}
+                  value={p.description}
+                  onChangeText={(text) => {
+                    const updated = [...formData.portfolio];
+                    updated[index] = { ...p, description: text };
+                    setFormData({ ...formData, portfolio: updated });
+                  }}
+                  multiline
+                />
+                <TextInput
+                  style={[styles.input, styles.smallInput]}
+                  placeholder="Image URL (or mock placeholder URL)"
+                  placeholderTextColor={colors.textMuted}
+                  value={p.image}
+                  onChangeText={(text) => {
+                    const updated = [...formData.portfolio];
+                    updated[index] = { ...p, image: text };
+                    setFormData({ ...formData, portfolio: updated });
+                  }}
+                />
+              </View>
+            ))}
+            <Pressable
+              style={styles.addItemBtn}
+              onPress={() => {
+                setFormData({
+                  ...formData,
+                  portfolio: [
+                    ...formData.portfolio,
+                    { id: `new-portfolio-${Date.now()}`, title: "", description: "", image: "" }
+                  ]
+                });
+              }}
+            >
+              <Ionicons name="add" size={16} color={colors.primary} />
+              <Text style={styles.addItemBtnText}>Add Portfolio Project</Text>
+            </Pressable>
 
             <View style={styles.actions}>
               <Pressable
@@ -301,7 +488,8 @@ export default function FreelancerProfileTabScreen() {
         >
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -517,5 +705,57 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 16,
       fontWeight: "600",
       color: colors.textSecondary,
+    },
+    itemEditorCard: {
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: radius.md,
+      padding: spacing.sm,
+      marginTop: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    itemEditorHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: spacing.xs,
+    },
+    itemEditorTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.textPrimary,
+    },
+    smallInput: {
+      paddingVertical: 6,
+      paddingHorizontal: spacing.xs,
+      fontSize: 13,
+      marginBottom: spacing.xs,
+    },
+    smallTextarea: {
+      height: 60,
+      textAlignVertical: "top",
+      paddingVertical: 6,
+      paddingHorizontal: spacing.xs,
+      fontSize: 13,
+      marginBottom: spacing.xs,
+    },
+    addItemBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderStyle: "dashed",
+      borderRadius: radius.md,
+      paddingVertical: 10,
+      marginTop: spacing.xs,
+      marginBottom: spacing.md,
+      gap: 6,
+    },
+    addItemBtnText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.primary,
     },
   });

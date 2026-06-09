@@ -2,17 +2,19 @@ import type { Href } from "expo-router";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import Toast from "react-native-toast-message";
-
 import { useAuth } from "../../src/context/AuthContext";
 import { useFreelancers } from "../../src/context/FreelancersContext";
 import { useRequests } from "../../src/context/RequestsContext";
@@ -97,7 +99,18 @@ export default function BookingRequestScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 20}
+      >
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
       <Text style={styles.heading}>Consultation Request</Text>
 
       <View style={styles.freelancerBlock}>
@@ -142,7 +155,9 @@ export default function BookingRequestScreen() {
       <Pressable style={styles.button} onPress={handleSubmit}>
         <Text style={styles.buttonText}>Send Request</Text>
       </Pressable>
-    </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -151,9 +166,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-
   content: {
     padding: spacing.xl,
+    paddingBottom: spacing.xxl,
   },
 
   heading: {

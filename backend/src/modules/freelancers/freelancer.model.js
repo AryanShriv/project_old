@@ -22,6 +22,7 @@ const freelancerSchema = new mongoose.Schema(
       index: true,
     },
     portfolio: [{ title: String, description: String, link: String }],
+    experience: [{ year: String, role: String, company: String, description: String }],
     rating: { type: Number, min: 0, max: 5, default: 0 },
     completedProjects: { type: Number, min: 0, default: 0 },
   },

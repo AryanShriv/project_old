@@ -3,10 +3,13 @@ import { Tabs } from "expo-router";
 import { Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors } from "@/src/design-system/colors";
+import { useChat } from "@/src/context/ChatContext";
+import { useTheme } from "@/src/context/ThemeContext";
 
 export default function FreelancerTabsLayout() {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
+  const { totalUnreadCount } = useChat();
 
   return (
     <Tabs
@@ -16,9 +19,9 @@ export default function FreelancerTabsLayout() {
         tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: "rgba(255, 255, 255, 0.92)",
+          backgroundColor: isDark ? "rgba(15, 23, 42, 0.92)" : "rgba(255, 255, 255, 0.92)",
           borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: "rgba(0,0,0,0.06)",
+          borderTopColor: colors.divider,
           elevation: 0,
           paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 6),
@@ -57,6 +60,17 @@ export default function FreelancerTabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar" size={size} color={color} />
           ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: "Messages",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubbles" size={size} color={color} />
+          ),
+          tabBarBadge: totalUnreadCount > 0 ? totalUnreadCount : undefined,
         }}
       />
 
