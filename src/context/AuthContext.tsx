@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { apiRequest, clearTokens, persistTokens } from "../services/apiClient";
 import { registerPushToken, unregisterPushToken } from "../services/notificationsService";
+import { checkRateLimit, clearRateLimit, recordFailedAttempt } from "../services/rateLimiter";
 import type {
     AuditLogEntry,
     AuthRoleIntent,
