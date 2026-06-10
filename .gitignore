@@ -42,3 +42,5 @@ app-example
 # generated native folders
 /ios
 /android
+DEPLOYMENT_GUIDE.md
+SESSION_SUMMARY.md
