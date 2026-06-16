@@ -2,7 +2,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { z } = require("zod");
 const User = require("../users/user.model");
-const FreelancerProfile = require("../freelancers/freelancer.model");
+const FreelancerProfile = require("../experts/expert.model");
+const Application = require("../applications/application.model");
 const env = require("../../config/env");
 const { sendSuccess, sendError } = require("../../utils/http");
 const { signAccessToken, signRefreshToken, toAuthUser } = require("./auth.utils");
@@ -12,9 +13,9 @@ const registerSchema = z
     email: z.string().trim().email(),
     password: z.string().min(6),
     fullName: z.string().trim().min(2).max(100),
-    role: z.enum(["client", "freelancer"]).optional(),
+    role: z.enum(["user", "expert"]).optional(),
     acceptedTerms: z.boolean(),
-    acceptedFreelancerCompliance: z.boolean().optional(),
+    acceptedExpertCompliance: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     if (!data.acceptedTerms) {
@@ -24,11 +25,11 @@ const registerSchema = z
         path: ["acceptedTerms"],
       });
     }
-    if (data.role === "freelancer" && !data.acceptedFreelancerCompliance) {
+    if (data.role === "expert" && !data.acceptedExpertCompliance) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "You must confirm your professional credentials declaration.",
-        path: ["acceptedFreelancerCompliance"],
+        path: ["acceptedExpertCompliance"],
       });
     }
   });
@@ -40,13 +41,13 @@ const loginSchema = z.object({
 
 const buildAuthUserPayload = async (user) => {
   const base = toAuthUser(user);
-  if (user.role !== "freelancer") {
+  if (user.role !== "expert") {
     return base;
   }
   const profile = await FreelancerProfile.findOne({ userId: user._id }).select("_id");
   return {
     ...base,
-    managedFreelancerId: profile?._id?.toString(),
+    managedExpertId: profile?._id?.toString(),
   };
 };
 
@@ -56,14 +57,14 @@ const register = async (req, res) => {
     return sendError(res, "Invalid register payload", 400, parsed.error.flatten());
   }
 
-  const { email, password, fullName, role = "client" } = parsed.data;
+  const { email, password, fullName, role = "user" } = parsed.data;
   const existing = await User.findOne({ email });
   if (existing) {
     return sendError(res, "Email already registered", 409);
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const accountStatus = role === "freelancer" ? "pending_review" : "active";
+  const accountStatus = role === "expert" ? "pending_review" : "active";
   const acceptedAt = new Date();
   const user = await User.create({
     email,
@@ -73,17 +74,26 @@ const register = async (req, res) => {
     profile: { fullName },
     legalAcceptance: {
       termsAcceptedAt: acceptedAt,
-      freelancerComplianceAcceptedAt: role === "freelancer" ? acceptedAt : null,
+      expertComplianceAcceptedAt: role === "expert" ? acceptedAt : null,
     },
   });
 
-  if (role === "freelancer") {
-    await FreelancerProfile.create({
+  if (role === "expert") {
+    const profile = await FreelancerProfile.create({
       userId: user._id,
       fullName,
       headline: "",
       bio: "",
       profileStatus: "pending_review",
+    });
+    
+    await Application.create({
+      applicantUserId: user._id,
+      expertProfileId: profile._id,
+      status: "pending",
+      submission: {
+        fullName,
+      }
     });
   }
 

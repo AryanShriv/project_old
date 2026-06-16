@@ -16,14 +16,14 @@ export default function Index() {
     );
   }
 
-  if (user?.role === "freelancer") {
-    return <Redirect href={"/(freelancer)/(tabs)" as Href} />;
+  if (user?.role === "expert") {
+    return <Redirect href={"/(expert)/(tabs)" as Href} />;
   }
   if (user?.role === "admin") {
     return <Redirect href={"/(admin)/(tabs)" as Href} />;
   }
 
-  return <Redirect href={"/(client)/(tabs)" as Href} />;
+  return <Redirect href={"/(user)/(tabs)" as Href} />;
 }
 
 const styles = StyleSheet.create({

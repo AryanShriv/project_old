@@ -2,17 +2,20 @@ const mongoose = require("mongoose");
 const { z } = require("zod");
 const { sendSuccess, sendError } = require("../../utils/http");
 const Request = require("./request.model");
-const FreelancerProfile = require("../freelancers/freelancer.model");
+const ExpertProfile = require("../experts/expert.model");
 
 const createSchema = z.object({
-  freelancerId: z.string().trim().min(1),
-  projectTitle: z.string().trim().min(3).max(160),
+  expertId: z.string().trim().min(1),
+  projectTitle: z.string().trim().min(3).max(160).optional(),
   description: z.string().trim().max(4000).optional(),
   budget: z.number().min(0).optional(),
+  userMessage: z.string().trim().min(10).max(500).optional(),
+  engagementType: z.enum(["remote", "onsite", "both", "ongoing"]).optional(),
+  timingPreference: z.enum(["asap", "week", "month", "flexible"]).optional(),
 });
 
 const listSchema = z.object({
-  role: z.enum(["client", "freelancer"]).optional(),
+  role: z.enum(["user", "expert"]).optional(),
   status: z.enum(["pending", "accepted", "rejected", "cancelled", "completed"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -28,25 +31,39 @@ const createRequest = async (req, res) => {
     return sendError(res, "Invalid request payload", 400, parsed.error.flatten());
   }
 
-  const { freelancerId, projectTitle, description = "", budget = 0 } = parsed.data;
-  if (!mongoose.isValidObjectId(freelancerId)) {
-    return sendError(res, "Invalid freelancerId", 400);
+  const {
+    expertId,
+    projectTitle,
+    description = "",
+    budget = 0,
+    userMessage = "",
+    engagementType = "remote",
+    timingPreference = "flexible",
+  } = parsed.data;
+
+  if (!mongoose.isValidObjectId(expertId)) {
+    return sendError(res, "Invalid expertId", 400);
   }
 
-  const freelancer = await FreelancerProfile.findById(freelancerId).select("_id profileStatus");
-  if (!freelancer) {
-    return sendError(res, "Freelancer not found", 404);
+  const expert = await ExpertProfile.findById(expertId).select("_id profileStatus");
+  if (!expert) {
+    return sendError(res, "Expert not found", 404);
   }
-  if (freelancer.profileStatus !== "active") {
-    return sendError(res, "Freelancer is not accepting requests", 400);
+  if (expert.profileStatus !== "active") {
+    return sendError(res, "Expert is not accepting requests", 400);
   }
+
+  const finalTitle = projectTitle || userMessage.substring(0, 160) || "Untitled Request";
 
   const created = await Request.create({
-    clientId: req.auth.sub,
-    freelancerId: freelancer._id,
-    projectTitle,
+    userId: req.auth.sub,
+    expertId: expert._id,
+    projectTitle: finalTitle,
     description,
     budget,
+    userMessage,
+    engagementType,
+    timingPreference,
     status: "pending",
   });
 
@@ -62,7 +79,7 @@ const listRequests = async (req, res) => {
   const requesterRole = req.auth.role;
   const requesterId = req.auth.sub;
   const { role, status, page, limit } = parsed.data;
-  const effectiveRole = role || (requesterRole === "freelancer" ? "freelancer" : "client");
+  const effectiveRole = role || (requesterRole === "expert" ? "expert" : "user");
 
   if (requesterRole !== "admin" && effectiveRole !== requesterRole) {
     return sendError(res, "Forbidden", 403);
@@ -73,26 +90,26 @@ const listRequests = async (req, res) => {
     filter.status = status;
   }
 
-  if (effectiveRole === "client") {
-    filter.clientId = requesterRole === "admin" && req.query.clientId ? req.query.clientId : requesterId;
-  } else if (effectiveRole === "freelancer") {
-    let freelancerProfileId;
-    if (requesterRole === "admin" && req.query.freelancerId && mongoose.isValidObjectId(req.query.freelancerId)) {
-      freelancerProfileId = req.query.freelancerId;
+  if (effectiveRole === "user") {
+    filter.userId = requesterRole === "admin" && req.query.userId ? req.query.userId : requesterId;
+  } else if (effectiveRole === "expert") {
+    let expertProfileId;
+    if (requesterRole === "admin" && req.query.expertId && mongoose.isValidObjectId(req.query.expertId)) {
+      expertProfileId = req.query.expertId;
     } else {
-      const profile = await FreelancerProfile.findOne({ userId: requesterId }).select("_id");
+      const profile = await ExpertProfile.findOne({ userId: requesterId }).select("_id");
       if (!profile) {
         return sendSuccess(res, { items: [], pagination: { page, limit, total: 0 } }, "Requests fetched");
       }
-      freelancerProfileId = profile._id;
+      expertProfileId = profile._id;
     }
-    filter.freelancerId = freelancerProfileId;
+    filter.expertId = expertProfileId;
   }
 
   const skip = (page - 1) * limit;
   const [itemsRaw, total] = await Promise.all([
     Request.find(filter)
-      .populate("clientId", "profile.fullName email")
+      .populate("userId", "profile.fullName email")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -101,7 +118,7 @@ const listRequests = async (req, res) => {
   ]);
   const items = itemsRaw.map((item) => ({
     ...item,
-    clientName: item.clientId?.profile?.fullName || item.clientId?.email || "Client",
+    userName: item.userId?.profile?.fullName || item.userId?.email || "User",
   }));
 
   return sendSuccess(res, { items, pagination: { page, limit, total } }, "Requests fetched");
@@ -122,22 +139,22 @@ const updateRequestStatus = async (req, res) => {
     return sendError(res, "Request not found", 404);
   }
 
-  if (req.auth.role === "freelancer") {
-    const profile = await FreelancerProfile.findOne({ userId: req.auth.sub }).select("_id");
-    if (!profile || profile._id.toString() !== requestDoc.freelancerId.toString()) {
+  if (req.auth.role === "expert") {
+    const profile = await ExpertProfile.findOne({ userId: req.auth.sub }).select("_id");
+    if (!profile || profile._id.toString() !== requestDoc.expertId.toString()) {
       return sendError(res, "Forbidden", 403);
     }
     if (!["accepted", "rejected", "completed"].includes(parsed.data.status)) {
-      return sendError(res, "Freelancer can only set accepted, rejected, or completed", 400);
+      return sendError(res, "Expert can only set accepted, rejected, or completed", 400);
     }
   }
 
-  if (req.auth.role === "client") {
-    if (requestDoc.clientId.toString() !== req.auth.sub) {
+  if (req.auth.role === "user") {
+    if (requestDoc.userId.toString() !== req.auth.sub) {
       return sendError(res, "Forbidden", 403);
     }
     if (parsed.data.status !== "cancelled") {
-      return sendError(res, "Client can only cancel requests", 400);
+      return sendError(res, "User can only cancel requests", 400);
     }
     if (requestDoc.status !== "pending") {
       return sendError(res, "Only pending requests can be cancelled", 400);
@@ -147,7 +164,7 @@ const updateRequestStatus = async (req, res) => {
     return sendSuccess(res, requestDoc, "Request status updated");
   }
 
-  if (req.auth.role === "admin" || req.auth.role === "freelancer") {
+  if (req.auth.role === "admin" || req.auth.role === "expert") {
     if (requestDoc.status === "rejected" && parsed.data.status === "accepted") {
       return sendError(res, "Cannot accept an already rejected request", 400);
     }
@@ -158,15 +175,15 @@ const updateRequestStatus = async (req, res) => {
     if (previousStatus !== "accepted" && parsed.data.status === "accepted") {
       try {
         const Conversation = require("../chat/conversation.model");
-        const freelancerProfile = await FreelancerProfile.findById(requestDoc.freelancerId).select("userId");
-        if (freelancerProfile) {
-          const clientId = requestDoc.clientId;
-          const freelancerUserId = freelancerProfile.userId;
+        const expertProfile = await ExpertProfile.findById(requestDoc.expertId).select("userId");
+        if (expertProfile) {
+          const userId = requestDoc.userId;
+          const expertUserId = expertProfile.userId;
 
           let conversation = await Conversation.findOne({ request: requestDoc._id });
           if (!conversation) {
             conversation = await Conversation.create({
-              participants: [clientId, freelancerUserId],
+              participants: [userId, expertUserId],
               request: requestDoc._id,
             });
             
@@ -176,8 +193,8 @@ const updateRequestStatus = async (req, res) => {
               const populated = await Conversation.findById(conversation._id)
                 .populate("participants", "profile.fullName email profile.avatarUrl role")
                 .lean();
-              io.to(`user:${clientId.toString()}`).emit("chat:new_conversation", populated);
-              io.to(`user:${freelancerUserId.toString()}`).emit("chat:new_conversation", populated);
+              io.to(`user:${userId.toString()}`).emit("chat:new_conversation", populated);
+              io.to(`user:${expertUserId.toString()}`).emit("chat:new_conversation", populated);
             } catch (socketErr) {
               console.error("Socket error during conversation creation", socketErr);
             }

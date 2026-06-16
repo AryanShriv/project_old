@@ -278,7 +278,7 @@ xxl: 48px  - Maximum spacing
 ### 4. **Data Privacy**
 - Local storage encryption
 - No sensitive data in logs
-- GDPR-compliant data handling
+- **PIPEDA-compliant** (Canada) and **DPDP Act-compliant** (India) data handling
 
 ---
 

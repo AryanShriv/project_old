@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const savedFreelancerSchema = new mongoose.Schema(
+const savedExpertSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -8,9 +8,9 @@ const savedFreelancerSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    freelancerId: {
+    expertId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "FreelancerProfile",
+      ref: "ExpertProfile",
       required: true,
       index: true,
     },
@@ -18,8 +18,8 @@ const savedFreelancerSchema = new mongoose.Schema(
   { timestamps: true, versionKey: false }
 );
 
-savedFreelancerSchema.index({ userId: 1, freelancerId: 1 }, { unique: true });
+savedExpertSchema.index({ userId: 1, expertId: 1 }, { unique: true });
 
-const SavedFreelancer = mongoose.model("SavedFreelancer", savedFreelancerSchema);
+const SavedExpert = mongoose.model("SavedExpert", savedExpertSchema);
 
-module.exports = SavedFreelancer;
+module.exports = SavedExpert;

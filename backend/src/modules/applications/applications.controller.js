@@ -1,7 +1,7 @@
 const { z } = require("zod");
 const { sendSuccess, sendError } = require("../../utils/http");
 const Application = require("./application.model");
-const FreelancerProfile = require("../freelancers/freelancer.model");
+const ExpertProfile = require("../experts/expert.model");
 const User = require("../users/user.model");
 const AuditLog = require("../admin/audit-log.model");
 
@@ -24,7 +24,7 @@ const createApplicationSchema = z.object({
     .optional(),
 });
 
-const createFreelancerApplication = async (req, res) => {
+const createExpertApplication = async (req, res) => {
   const parsed = createApplicationSchema.safeParse(req.body || {});
   if (!parsed.success) {
     return sendError(res, "Invalid application payload", 400, parsed.error.flatten());
@@ -35,8 +35,8 @@ const createFreelancerApplication = async (req, res) => {
   if (!user) {
     return sendError(res, "User not found", 404);
   }
-  if (user.role !== "freelancer") {
-    return sendError(res, "Only freelancer accounts can apply", 403);
+  if (user.role !== "expert") {
+    return sendError(res, "Only expert accounts can apply", 403);
   }
 
   const existingPending = await Application.findOne({ applicantUserId: userId, status: "pending" });
@@ -44,25 +44,25 @@ const createFreelancerApplication = async (req, res) => {
     return sendError(res, "Pending application already exists", 409);
   }
 
-  const freelancerProfile = await FreelancerProfile.findOne({ userId });
-  if (!freelancerProfile) {
-    return sendError(res, "Freelancer profile not found", 404);
+  const expertProfile = await ExpertProfile.findOne({ userId });
+  if (!expertProfile) {
+    return sendError(res, "Expert profile not found", 404);
   }
 
   const submission = {
-    fullName: user.profile?.fullName || freelancerProfile.fullName || "",
-    headline: parsed.data.headline ?? freelancerProfile.headline ?? "",
-    bio: parsed.data.bio ?? freelancerProfile.bio ?? "",
-    skills: parsed.data.skills ?? freelancerProfile.skills ?? [],
-    categories: parsed.data.categories ?? freelancerProfile.categories ?? [],
-    hourlyRate: parsed.data.hourlyRate ?? freelancerProfile.hourlyRate ?? 0,
-    yearsExperience: parsed.data.yearsExperience ?? freelancerProfile.yearsExperience ?? 0,
-    portfolio: parsed.data.portfolio ?? freelancerProfile.portfolio ?? [],
+    fullName: user.profile?.fullName || expertProfile.fullName || "",
+    headline: parsed.data.headline ?? expertProfile.headline ?? "",
+    bio: parsed.data.bio ?? expertProfile.bio ?? "",
+    skills: parsed.data.skills ?? expertProfile.skills ?? [],
+    categories: parsed.data.categories ?? expertProfile.categories ?? [],
+    hourlyRate: parsed.data.hourlyRate ?? expertProfile.hourlyRate ?? 0,
+    yearsExperience: parsed.data.yearsExperience ?? expertProfile.yearsExperience ?? 0,
+    portfolio: parsed.data.portfolio ?? expertProfile.portfolio ?? [],
   };
 
   const application = await Application.create({
     applicantUserId: userId,
-    freelancerProfileId: freelancerProfile._id,
+    expertProfileId: expertProfile._id,
     status: "pending",
     submission,
   });
@@ -70,8 +70,8 @@ const createFreelancerApplication = async (req, res) => {
   user.accountStatus = "pending_review";
   await user.save();
 
-  freelancerProfile.profileStatus = "pending_review";
-  await freelancerProfile.save();
+  expertProfile.profileStatus = "pending_review";
+  await expertProfile.save();
 
   await AuditLog.create({
     actorId: userId,
@@ -80,11 +80,11 @@ const createFreelancerApplication = async (req, res) => {
     entityId: application._id.toString(),
     metadata: {
       applicantUserId: userId.toString(),
-      freelancerProfileId: freelancerProfile._id.toString(),
+      expertProfileId: expertProfile._id.toString(),
     },
   });
 
   return sendSuccess(res, application, "Application submitted", 201);
 };
 
-module.exports = { createFreelancerApplication };
+module.exports = { createExpertApplication };

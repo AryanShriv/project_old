@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
-import { Request } from "../types/requests";
 import { apiRequest } from "../services/apiClient";
+import { Request } from "../types/requests";
 import { useAuth } from "./AuthContext";
 
 type RequestsContextType = {
@@ -27,8 +27,8 @@ export const RequestsProvider = ({
       setRequests([]);
       return;
     }
-    const role = user.role === "admin" ? "client" : user.role;
-    if (role !== "client" && role !== "freelancer") {
+    const role = user.role;
+    if (role !== "user" && role !== "expert") {
       setRequests([]);
       return;
     }
@@ -38,10 +38,20 @@ export const RequestsProvider = ({
       });
       const mapped: Request[] = data.items.map((item) => ({
         id: item._id,
-        freelancerId: item.freelancerId,
-        projectTitle: item.projectTitle,
+        userId: item.userId,
+        expertId: item.expertId,
+        userMessage: item.userMessage,
+        description: item.description,
+        aiSummary: item.aiSummary,
+        engagementType: item.engagementType,
+        timingPreference: item.timingPreference,
         status: item.status,
-        clientName: item.clientName,
+        expiresAt: item.expiresAt,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        respondedAt: item.respondedAt,
+        userName: item.userName,
+        projectTitle: item.projectTitle,
       }));
       setRequests(mapped);
     } catch {
@@ -55,9 +65,9 @@ export const RequestsProvider = ({
 
   const addRequest = useCallback(
     async (request: Request) => {
-      if (!MONGO_ID_REGEX.test(request.freelancerId)) {
+      if (!MONGO_ID_REGEX.test(request.expertId)) {
         throw new Error(
-          "This profile is demo-only and cannot receive requests. Add freelancer profiles in backend first."
+          "This profile is demo-only and cannot receive requests. Add expert profiles in backend first."
         );
       }
       await apiRequest(
@@ -66,10 +76,10 @@ export const RequestsProvider = ({
           method: "POST",
           auth: true,
           body: {
-            freelancerId: request.freelancerId,
-            projectTitle: request.projectTitle,
-            description: "",
-            budget: 0,
+            expertId: request.expertId,
+            userMessage: request.userMessage || request.projectTitle,
+            engagementType: request.engagementType,
+            timingPreference: request.timingPreference,
           },
         }
       );

@@ -8,9 +8,9 @@ const applicationSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    freelancerProfileId: {
+    expertProfileId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "FreelancerProfile",
+      ref: "ExpertProfile",
       required: true,
       index: true,
     },

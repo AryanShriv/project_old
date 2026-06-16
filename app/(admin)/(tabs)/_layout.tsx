@@ -52,7 +52,7 @@ export default function AdminTabsLayout() {
       <Tabs.Screen
         name="freelancers"
         options={{
-          title: "Freelancers",
+          title: "Experts",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people" size={size} color={color} />
           ),

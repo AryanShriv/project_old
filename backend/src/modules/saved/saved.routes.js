@@ -4,8 +4,8 @@ const { requireAuth, requireRole } = require("../../middleware/auth");
 
 const router = express.Router();
 
-router.get("/", requireAuth, requireRole("client"), controller.listSavedFreelancers);
-router.post("/:freelancerId", requireAuth, requireRole("client"), controller.saveFreelancer);
-router.delete("/:freelancerId", requireAuth, requireRole("client"), controller.unsaveFreelancer);
+router.get("/", requireAuth, requireRole("user"), controller.listSavedExperts);
+router.post("/:expertId", requireAuth, requireRole("user"), controller.saveExpert);
+router.delete("/:expertId", requireAuth, requireRole("user"), controller.unsaveExpert);
 
 module.exports = router;

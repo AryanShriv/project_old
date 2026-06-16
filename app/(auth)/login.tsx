@@ -3,15 +3,15 @@ import type { Href } from "expo-router";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -39,9 +39,9 @@ export default function LoginScreen() {
   const initialIntent: AuthRoleIntent =
     isAdminEntry
       ? "admin"
-      : intentParam === "freelancer"
-      ? "freelancer"
-      : "client";
+      : intentParam === "expert"
+      ? "expert"
+      : "user";
 
   const [intent, setIntent] = useState<AuthRoleIntent>(initialIntent);
   const [email, setEmail] = useState("");
@@ -57,12 +57,12 @@ export default function LoginScreen() {
         router.replace(returnTo as Href);
         return;
       }
-      if (role === "freelancer") {
-        router.replace("/(freelancer)/(tabs)");
+      if (role === "expert") {
+        router.replace("/(expert)/(tabs)");
       } else if (role === "admin") {
         router.replace("/(admin)/(tabs)");
       } else {
-        router.replace("/(client)/(tabs)");
+        router.replace("/(user)/(tabs)");
       }
     },
     [params.returnTo],
@@ -107,7 +107,7 @@ export default function LoginScreen() {
             style={styles.back}
             onPress={() => {
               if (router.canGoBack?.()) router.back();
-              else router.replace("/(client)/(tabs)");
+              else router.replace("/(user)/(tabs)");
             }}
             hitSlop={12}
           >
@@ -117,20 +117,20 @@ export default function LoginScreen() {
           <Text style={styles.title}>Welcome back</Text>
           <Text style={styles.subtitle}>
             {isAdminEntry
-              ? "Admin access for freelancer moderation and platform control."
-              : "Sign in to save experts, send requests, or manage your freelancer inbox."}
+              ? "Admin access for expert moderation and platform control."
+              : "Sign in to save experts, send requests, or manage your expert inbox."}
           </Text>
 
           {!isAdminEntry ? (
             <View style={styles.segment}>
               <Pressable
-                style={[styles.segBtn, intent === "client" && styles.segBtnOn]}
-                onPress={() => setIntent("client")}
+                style={[styles.segBtn, intent === "user" && styles.segBtnOn]}
+                onPress={() => setIntent("user")}
               >
                 <Text
                   style={[
                     styles.segLabel,
-                    intent === "client" && styles.segLabelOn,
+                    intent === "user" && styles.segLabelOn,
                   ]}
                 >
                   Hiring
@@ -139,17 +139,17 @@ export default function LoginScreen() {
               <Pressable
                 style={[
                   styles.segBtn,
-                  intent === "freelancer" && styles.segBtnOn,
+                  intent === "expert" && styles.segBtnOn,
                 ]}
-                onPress={() => setIntent("freelancer")}
+                onPress={() => setIntent("expert")}
               >
                 <Text
                   style={[
                     styles.segLabel,
-                    intent === "freelancer" && styles.segLabelOn,
+                    intent === "expert" && styles.segLabelOn,
                   ]}
                 >
-                  Freelancer
+                  Expert
                 </Text>
               </Pressable>
             </View>
@@ -162,9 +162,9 @@ export default function LoginScreen() {
             keyboardType="email-address"
             autoComplete="email"
             placeholder={
-              intent === "client"
-                ? "client@demo.com"
-                : intent === "freelancer"
+              intent === "user"
+                ? "user@demo.com"
+                : intent === "expert"
                   ? "john@demo.com"
                   : "admin@demo.com"
             }

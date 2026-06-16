@@ -3,18 +3,15 @@
  * Philosophy: Warm authority, Accessible first, Trust through restraint
  */
 
-// Brand - Gold Palette (use sparingly)
+// Brand - Gold Palette (PRIMARY: #BA7517)
 export const gold = {
-  50: "#FEF9F0",
-  100: "#FDF3E1",
-  200: "#FAE7C3",
-  300: "#F7DBA5",
-  400: "#F4CF87",
-  500: "#BA7517", // Primary brand gold
-  600: "#A66614",
-  700: "#8C5611",
-  800: "#72460E",
-  900: "#58360B",
+  50: "#FAEEDA",
+  100: "#FAC775",
+  200: "#EF9F27",
+  400: "#BA7517", // PRIMARY BRAND COLOR
+  600: "#854F0B",
+  800: "#633806",
+  900: "#412402",
 };
 
 // Neutral - Warm Gray Palette (primary UI colors)
@@ -51,8 +48,8 @@ export const light = {
   surfaceElevated: "#FFFFFF",     // Only for modals/overlays
 
   // Brand
-  primary: gold[500],             // #BA7517 - Use sparingly
-  primaryMuted: gold[100],        // #FDF3E1 - Light gold backgrounds
+  primary: gold[400],             // #BA7517 - PRIMARY BRAND COLOR
+  primaryMuted: gold[100],        // #FAC775 - Light gold backgrounds
 
   // Text
   textPrimary: neutral[700],      // #2E2E28 - Headings, high emphasis
@@ -64,7 +61,7 @@ export const light = {
   border: neutral[300],           // #D1D1C9
 
   // Tab Bar
-  tabBarActive: gold[500],        // #BA7517
+  tabBarActive: gold[400],        // #BA7517
   tabBarInactive: neutral[500],   // #6B6B61
 
   // Overlay
@@ -87,8 +84,8 @@ export const dark = {
   surface: "#2E2E28",
   surfaceElevated: "#3A3A32",
 
-  primary: gold[400],             // Lighter gold for dark mode
-  primaryMuted: "rgba(244, 207, 135, 0.15)",
+  primary: gold[100],             // #FAC775 - Lighter gold for dark mode
+  primaryMuted: "rgba(250, 199, 117, 0.15)",
 
   textPrimary: "#FAFAF8",         // Light warm white for headings
   textSecondary: "#D1D1C9",       // Light warm gray for body text
@@ -97,7 +94,7 @@ export const dark = {
   divider: "rgba(232, 232, 227, 0.1)",
   border: "rgba(232, 232, 227, 0.15)",
 
-  tabBarActive: gold[400],
+  tabBarActive: gold[100],        // #FAC775 lighter for dark mode
   tabBarInactive: neutral[400],
 
   overlay: "rgba(0, 0, 0, 0.7)",

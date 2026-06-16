@@ -16,15 +16,15 @@ export const SavedProvider = ({ children }: { children: React.ReactNode }) => {
   const [savedIds, setSavedIds] = useState<string[]>([]);
 
   const refreshSaved = useCallback(async () => {
-    if (!user || user.role !== "client") {
+    if (!user || user.role !== "user") {
       setSavedIds([]);
       return;
     }
     try {
-      const data = await apiRequest<{ items: Array<{ freelancer: { _id: string } }> }>("/saved", {
+      const data = await apiRequest<{ items: Array<{ expert: { _id: string } }> }>("/saved", {
         auth: true,
       });
-      setSavedIds(data.items.map((item) => item.freelancer._id));
+      setSavedIds(data.items.map((item) => item.expert._id));
     } catch {
       setSavedIds([]);
     }

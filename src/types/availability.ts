@@ -15,7 +15,7 @@ export type DaySlot = {
 };
 
 export type Availability = {
-  freelancerId: string;
+  expertId: string;
   timezone: string;
   slots: DaySlot[];
 };

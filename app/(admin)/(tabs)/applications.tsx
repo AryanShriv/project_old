@@ -16,7 +16,7 @@ export default function AdminApplicationsScreen() {
         <EmptyState
           icon="checkmark-done-outline"
           title="All caught up"
-          subtitle="No freelancer applications are waiting for review."
+          subtitle="No expert applications are waiting for review."
         />
       </SafeAreaView>
     );
@@ -25,7 +25,7 @@ export default function AdminApplicationsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Freelancer applications</Text>
+        <Text style={styles.title}>Expert applications</Text>
         <Text style={styles.subtitle}>{pending.length} pending review</Text>
       </View>
       <FlatList
@@ -38,7 +38,7 @@ export default function AdminApplicationsScreen() {
               <Text style={styles.name}>{item.name}</Text>
               <Text style={styles.email}>{item.email}</Text>
               <Text style={styles.meta}>
-                Profile id: {item.managedFreelancerId}
+                Profile id: {item.expertProfileId}
               </Text>
               <Text style={styles.meta}>
                 Submitted: {new Date(item.createdAt).toLocaleDateString()}

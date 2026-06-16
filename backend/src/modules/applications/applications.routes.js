@@ -4,6 +4,6 @@ const { requireAuth, requireRole } = require("../../middleware/auth");
 
 const router = express.Router();
 
-router.post("/freelancer", requireAuth, requireRole("freelancer"), controller.createFreelancerApplication);
+router.post("/expert", requireAuth, requireRole("expert"), controller.createExpertApplication);
 
 module.exports = router;

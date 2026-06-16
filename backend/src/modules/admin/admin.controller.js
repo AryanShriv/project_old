@@ -3,7 +3,7 @@ const { z } = require("zod");
 const { sendSuccess, sendError } = require("../../utils/http");
 const Application = require("../applications/application.model");
 const User = require("../users/user.model");
-const FreelancerProfile = require("../freelancers/freelancer.model");
+const ExpertProfile = require("../experts/expert.model");
 const AuditLog = require("./audit-log.model");
 
 const listApplicationsSchema = z.object({
@@ -46,7 +46,7 @@ const listApplications = async (req, res) => {
     ...item,
     email: item.applicantUserId?.email || "",
     name: item.applicantUserId?.profile?.fullName || "",
-    freelancerProfileId: item.freelancerProfileId?.toString?.() || "",
+    expertProfileId: item.expertProfileId?.toString?.() || "",
   }));
 
   return sendSuccess(res, { items: mapped, pagination: { page, limit, total } }, "Applications fetched");
@@ -85,10 +85,13 @@ const reviewApplication = async (req, res) => {
 
   await Promise.all([
     User.findByIdAndUpdate(application.applicantUserId, { $set: { accountStatus } }),
-    FreelancerProfile.findByIdAndUpdate(application.freelancerProfileId, {
+    ExpertProfile.findByIdAndUpdate(application.expertProfileId, {
       $set: {
         profileStatus,
-        ...(decision === "approved" ? application.submission : {}),
+        approvalStatus: decision,
+        ...(decision === "approved"
+          ? { approvedAt: new Date(), ...application.submission }
+          : { rejectionReason: parsed.data.note || "Application not approved." }),
       },
     }),
     AuditLog.create({
@@ -107,9 +110,9 @@ const reviewApplication = async (req, res) => {
   return sendSuccess(res, application, "Application reviewed");
 };
 
-const setFreelancerStatus = async (req, res) => {
+const setExpertStatus = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
-    return sendError(res, "Invalid freelancer id", 400);
+    return sendError(res, "Invalid expert id", 400);
   }
 
   const parsed = statusSchema.safeParse(req.body);
@@ -117,34 +120,34 @@ const setFreelancerStatus = async (req, res) => {
     return sendError(res, "Invalid status payload", 400, parsed.error.flatten());
   }
 
-  const freelancer = await FreelancerProfile.findById(req.params.id);
-  if (!freelancer) {
-    return sendError(res, "Freelancer not found", 404);
+  const expert = await ExpertProfile.findById(req.params.id);
+  if (!expert) {
+    return sendError(res, "Expert not found", 404);
   }
 
   const accountStatus = parsed.data.status === "active" ? "active" : "suspended";
   const profileStatus = parsed.data.status === "active" ? "active" : "suspended";
 
   await Promise.all([
-    FreelancerProfile.findByIdAndUpdate(freelancer._id, { $set: { profileStatus } }),
-    User.findByIdAndUpdate(freelancer.userId, { $set: { accountStatus } }),
+    ExpertProfile.findByIdAndUpdate(expert._id, { $set: { profileStatus } }),
+    User.findByIdAndUpdate(expert.userId, { $set: { accountStatus } }),
     AuditLog.create({
       actorId: req.auth.sub,
-      action: "freelancer_status_updated",
-      entityType: "freelancer_profile",
-      entityId: freelancer._id.toString(),
+      action: "expert_status_updated",
+      entityType: "expert_profile",
+      entityId: expert._id.toString(),
       metadata: {
         status: parsed.data.status,
         note: parsed.data.note,
-        userId: freelancer.userId.toString(),
+        userId: expert.userId.toString(),
       },
     }),
   ]);
 
   return sendSuccess(
     res,
-    { freelancerId: freelancer._id, userId: freelancer.userId, status: parsed.data.status },
-    "Freelancer status updated"
+    { expertId: expert._id, userId: expert.userId, status: parsed.data.status },
+    "Expert status updated"
   );
 };
 
@@ -164,6 +167,6 @@ const listAuditLogs = async (req, res) => {
 module.exports = {
   listApplications,
   reviewApplication,
-  setFreelancerStatus,
+  setExpertStatus,
   listAuditLogs,
 };

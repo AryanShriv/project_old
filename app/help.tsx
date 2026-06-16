@@ -33,8 +33,8 @@ const FAQS: FaqItem[] = [
     a: "Go to Profile tab → tap 'Edit profile'. You can update your name, headline, bio, company, website, location, and phone.",
   },
   {
-    q: "Why can't I find a freelancer I know signed up?",
-    a: "New freelancers require admin approval before they appear in Discover. Once approved, pull down on the Discover screen to refresh.",
+    q: "Why can't I find an expert I know signed up?",
+    a: "New experts require admin approval before they appear in Discover. Once approved, pull down on the Discover screen to refresh.",
   },
   {
     q: "How do I cancel or withdraw a request?",

@@ -7,11 +7,7 @@ import { getConversations, getMessages, markAsRead as markAsReadApi } from "../s
 import { Conversation, Message } from "../types/chat";
 import { useAuth } from "./AuthContext";
 
-const API_BASE =
-  process.env.EXPO_PUBLIC_API_BASE_URL?.replace("/api/v1", "") ||
-  (Platform.OS === "android"
-    ? "http://10.0.2.2:4000"
-    : "http://localhost:4000");
+const API_BASE = Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://localhost:4000';
 
 type ChatContextType = {
   conversations: Conversation[];
@@ -129,10 +125,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const sendMessage = useCallback((conversationId: string, text: string) => {
     if (socket) {
       socket.emit("chat:send", { conversationId, text }, (response: any) => {
-        // Optional acknowledgment handling
+        if (response?.success && response?.message) {
+          setMessages((prev) => {
+            if (prev.find((m) => m._id === response.message._id)) return prev;
+            return [...prev, response.message].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          });
+          fetchConversations();
+        }
       });
     }
-  }, [socket]);
+  }, [socket, fetchConversations]);
 
   const emitTyping = useCallback((conversationId: string) => {
     if (socket) {

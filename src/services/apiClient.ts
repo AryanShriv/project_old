@@ -1,15 +1,12 @@
-import { Platform } from "react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
 export const ACCESS_TOKEN_KEY = "@api_access_token_v1";
 export const REFRESH_TOKEN_KEY = "@api_refresh_token_v1";
 
-const API_BASE =
-  process.env.EXPO_PUBLIC_API_BASE_URL ||
-  (Platform.OS === "android"
-    ? "http://10.0.2.2:4000/api/v1"
-    : "http://localhost:4000/api/v1");
+// Use local backend for development since it contains the latest user/expert role updates
+const API_BASE = Platform.OS === 'android' ? 'http://10.0.2.2:4000/api/v1' : 'http://localhost:4000/api/v1';
 
 type ApiOptions = {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";

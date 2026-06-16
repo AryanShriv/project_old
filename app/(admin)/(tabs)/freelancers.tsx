@@ -2,26 +2,26 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/context/AuthContext";
-import { useFreelancers } from "@/src/context/FreelancersContext";
+import { useExperts } from "@/src/context/ExpertsContext";
 import { colors } from "@/src/design-system/colors";
 import { spacing } from "@/src/design-system/spacing";
 
-export default function AdminFreelancersScreen() {
-  const { freelancerStatus, setFreelancerAccountStatus } = useAuth();
-  const { freelancers } = useFreelancers();
+export default function AdminExpertsScreen() {
+  const { expertStatus, setExpertAccountStatus } = useAuth();
+  const { experts } = useExperts();
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Freelancer accounts</Text>
+        <Text style={styles.title}>Expert accounts</Text>
         <Text style={styles.subtitle}>Suspend or reactivate visibility</Text>
       </View>
       <FlatList
-        data={freelancers}
+        data={experts}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => {
-          const status = freelancerStatus[item.id] ?? "active";
+          const status = expertStatus[item.id] ?? "active";
           const suspended = status === "suspended";
           return (
             <View style={styles.card}>
@@ -52,7 +52,7 @@ export default function AdminFreelancersScreen() {
               <Pressable
                 style={[styles.action, suspended ? styles.reactivate : styles.suspend]}
                 onPress={() =>
-                  setFreelancerAccountStatus(
+                  setExpertAccountStatus(
                     item.id,
                     suspended ? "active" : "suspended",
                   )

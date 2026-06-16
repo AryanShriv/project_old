@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const FreelancerProfile = require("../freelancers/freelancer.model");
+const FreelancerProfile = require("../experts/expert.model");
 
 const assertFreelancerAccess = async (freelancerId, auth) => {
   if (!mongoose.isValidObjectId(freelancerId)) {

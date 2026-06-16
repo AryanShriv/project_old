@@ -8,15 +8,15 @@ import { radius } from "@/src/design-system/radius";
 import { spacing } from "@/src/design-system/spacing";
 
 export default function AdminOverviewScreen() {
-  const { applications, freelancerStatus, auditLogs } = useAuth();
+  const { applications, expertStatus, auditLogs } = useAuth();
 
   const pending = applications.filter((a) => a.status === "pending").length;
   const approved = applications.filter((a) => a.status === "approved").length;
   const rejected = applications.filter((a) => a.status === "rejected").length;
-  const active = Object.values(freelancerStatus).filter(
+  const active = Object.values(expertStatus).filter(
     (s) => s === "active",
   ).length;
-  const suspended = Object.values(freelancerStatus).filter(
+  const suspended = Object.values(expertStatus).filter(
     (s) => s === "suspended",
   ).length;
 
@@ -51,7 +51,7 @@ export default function AdminOverviewScreen() {
         <View style={styles.infoCard}>
           <Ionicons name="information-circle" size={20} color={colors.primary} />
           <Text style={styles.infoText}>
-            Active freelancer accounts: {active}. Review incoming applications
+            Active expert accounts: {active}. Review incoming applications
             in the Applications tab and suspend accounts when needed.
           </Text>
         </View>

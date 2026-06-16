@@ -7,25 +7,25 @@ import { ThemeColors } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { spacing } from "@/src/design-system/spacing";
 import {
-  deleteAvailabilityException,
-  fetchAvailabilityExceptions,
-  upsertAvailabilityException,
+    deleteAvailabilityException,
+    fetchAvailabilityExceptions,
+    upsertAvailabilityException,
 } from "@/src/services/availabilityApi";
 import {
-  buildMonthGrid,
-  toDateKey,
-  toMonthKey,
-  type AvailabilityException,
+    buildMonthGrid,
+    toDateKey,
+    toMonthKey,
+    type AvailabilityException,
 } from "@/src/types/availability";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 type Props = {
-  freelancerId: string;
+  expertId: string;
   colors: ThemeColors;
 };
 
-export function MonthExceptionCalendar({ freelancerId, colors }: Props) {
+export function MonthExceptionCalendar({ expertId, colors }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const today = useMemo(() => new Date(), []);
 
@@ -50,7 +50,7 @@ export function MonthExceptionCalendar({ freelancerId, colors }: Props) {
   const loadExceptions = useCallback(async () => {
     setLoading(true);
     try {
-      const items = await fetchAvailabilityExceptions(freelancerId, monthKey);
+      const items = await fetchAvailabilityExceptions(expertId, monthKey);
       setExceptions(items);
     } catch {
       setExceptions([]);
@@ -61,7 +61,7 @@ export function MonthExceptionCalendar({ freelancerId, colors }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [freelancerId, monthKey]);
+  }, [expertId, monthKey]);
 
   useEffect(() => {
     loadExceptions();
@@ -78,7 +78,7 @@ export function MonthExceptionCalendar({ freelancerId, colors }: Props) {
     setBusyDate(dateKey);
     try {
       if (existing) {
-        await deleteAvailabilityException(freelancerId, dateKey);
+        await deleteAvailabilityException(expertId, dateKey);
         setExceptions((prev) => prev.filter((item) => item.date !== dateKey));
         Toast.show({
           type: "success",
@@ -88,7 +88,7 @@ export function MonthExceptionCalendar({ freelancerId, colors }: Props) {
         return;
       }
 
-      const saved = await upsertAvailabilityException(freelancerId, dateKey, {
+      const saved = await upsertAvailabilityException(expertId, dateKey, {
         kind: "blocked",
         note: "Day off",
       });
@@ -96,7 +96,7 @@ export function MonthExceptionCalendar({ freelancerId, colors }: Props) {
       Toast.show({
         type: "success",
         text1: "Day marked off",
-        text2: "Clients will not see you as available on this date.",
+        text2: "Users will not see you as available on this date.",
       });
     } catch (error) {
       Toast.show({

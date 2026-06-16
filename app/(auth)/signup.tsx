@@ -2,24 +2,24 @@ import type { Href } from "expo-router";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/context/AuthContext";
-import type { AuthRoleIntent } from "@/src/types/auth";
 import { useTheme } from "@/src/context/ThemeContext";
 import { ThemeColors } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { spacing } from "@/src/design-system/spacing";
+import type { AuthRoleIntent } from "@/src/types/auth";
 
 export default function SignupScreen() {
   const { register } = useAuth();
@@ -30,7 +30,7 @@ export default function SignupScreen() {
   const intentParam =
     typeof params.intent === "string" ? params.intent : undefined;
   const initialIntent: AuthRoleIntent =
-    intentParam === "freelancer" ? "freelancer" : "client";
+    intentParam === "expert" ? "expert" : "user";
 
   const [intent, setIntent] = useState<AuthRoleIntent>(initialIntent);
   const [name, setName] = useState("");
@@ -38,13 +38,13 @@ export default function SignupScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [acceptedFreelancerCompliance, setAcceptedFreelancerCompliance] =
+  const [acceptedExpertCompliance, setAcceptedExpertCompliance] =
     useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canSubmit =
-    acceptedTerms && (intent !== "freelancer" || acceptedFreelancerCompliance);
+    acceptedTerms && (intent !== "expert" || acceptedExpertCompliance);
 
   const onSubmit = async () => {
     setError(null);
@@ -67,9 +67,9 @@ export default function SignupScreen() {
       setError("You must accept the Terms and Conditions to create an account.");
       return;
     }
-    if (intent === "freelancer" && !acceptedFreelancerCompliance) {
+    if (intent === "expert" && !acceptedExpertCompliance) {
       setError(
-        "You must confirm the professional credentials declaration to apply as a freelancer.",
+        "You must confirm the professional credentials declaration to apply as an expert.",
       );
       return;
     }
@@ -81,10 +81,10 @@ export default function SignupScreen() {
         email: normalizedEmail,
         password,
         role: intent,
-        managedFreelancerId: undefined,
+        managedExpertId: undefined,
         acceptedTerms: true,
-        acceptedFreelancerCompliance:
-          intent === "freelancer" ? true : undefined,
+        acceptedExpertCompliance:
+          intent === "expert" ? true : undefined,
       });
       if (!result.ok) {
         setError(result.message);
@@ -93,14 +93,14 @@ export default function SignupScreen() {
       if (result.requiresApproval) {
         router.replace({
           pathname: "/(auth)/login",
-          params: { intent: "freelancer" },
+          params: { intent: "expert" },
         });
         return;
       }
-      if (intent === "freelancer") {
-        router.replace("/(freelancer)/(tabs)" as Href);
+      if (intent === "expert") {
+        router.replace("/(expert)/(tabs)" as Href);
       } else {
-        router.replace("/(client)/(tabs)" as Href);
+        router.replace("/(user)/(tabs)" as Href);
       }
     } finally {
       setSubmitting(false);
@@ -121,23 +121,23 @@ export default function SignupScreen() {
         >
           <Text style={styles.title}>Create account</Text>
           <Text style={styles.subtitle}>
-            {intent === "client"
+            {intent === "user"
               ? "Save profiles and send consultation requests."
-              : "Apply to claim your freelancer profile. Admin approval is required before you can sign in."}
+              : "Apply to claim your expert profile. Admin approval is required before you can sign in."}
           </Text>
 
           <View style={styles.segment}>
             <Pressable
-              style={[styles.segBtn, intent === "client" && styles.segBtnOn]}
+              style={[styles.segBtn, intent === "user" && styles.segBtnOn]}
               onPress={() => {
-                setIntent("client");
-                setAcceptedFreelancerCompliance(false);
+                setIntent("user");
+                setAcceptedExpertCompliance(false);
               }}
             >
               <Text
                 style={[
                   styles.segLabel,
-                  intent === "client" && styles.segLabelOn,
+                  intent === "user" && styles.segLabelOn,
                 ]}
               >
                 Hiring
@@ -146,17 +146,17 @@ export default function SignupScreen() {
             <Pressable
               style={[
                 styles.segBtn,
-                intent === "freelancer" && styles.segBtnOn,
+                intent === "expert" && styles.segBtnOn,
               ]}
-              onPress={() => setIntent("freelancer")}
+              onPress={() => setIntent("expert")}
             >
               <Text
                 style={[
                   styles.segLabel,
-                  intent === "freelancer" && styles.segLabelOn,
+                  intent === "expert" && styles.segLabelOn,
                 ]}
               >
-                Freelancer
+                Expert
               </Text>
             </Pressable>
           </View>
@@ -202,9 +202,9 @@ export default function SignupScreen() {
             </Pressable>
           </View>
 
-          {intent === "freelancer" ? (
+          {intent === "expert" ? (
             <Text style={styles.help}>
-              Freelancer registrations are reviewed by admin before sign-in is enabled.
+              Expert registrations are reviewed by admin before sign-in is enabled.
             </Text>
           ) : null}
 
@@ -234,22 +234,22 @@ export default function SignupScreen() {
               </Text>
             </Pressable>
 
-            {intent === "freelancer" ? (
+            {intent === "expert" ? (
               <Pressable
                 style={styles.checkRow}
                 onPress={() =>
-                  setAcceptedFreelancerCompliance((prev) => !prev)
+                  setAcceptedExpertCompliance((prev) => !prev)
                 }
                 accessibilityRole="checkbox"
-                accessibilityState={{ checked: acceptedFreelancerCompliance }}
+                accessibilityState={{ checked: acceptedExpertCompliance }}
               >
                 <View
                   style={[
                     styles.checkbox,
-                    acceptedFreelancerCompliance && styles.checkboxOn,
+                    acceptedExpertCompliance && styles.checkboxOn,
                   ]}
                 >
-                  {acceptedFreelancerCompliance ? (
+                  {acceptedExpertCompliance ? (
                     <Text style={styles.checkmark}>✓</Text>
                   ) : null}
                 </View>

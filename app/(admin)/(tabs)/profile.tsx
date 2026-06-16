@@ -22,7 +22,7 @@ export default function AdminProfileScreen() {
           style={styles.button}
           onPress={async () => {
             await logout();
-            router.replace("/(client)/(tabs)" as Href);
+            router.replace("/(user)/(tabs)" as Href);
           }}
         >
           <Text style={styles.buttonText}>Log out</Text>

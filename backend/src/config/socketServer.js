@@ -61,8 +61,8 @@ const initSocketServer = (httpServer) => {
         await conversation.save();
 
         const messageData = {
-          id: message._id.toString(),
-          conversationId: message.conversation.toString(),
+          _id: message._id.toString(),
+          conversation: message.conversation.toString(),
           sender: message.sender.toString(),
           text: message.text,
           createdAt: message.createdAt.toISOString(),

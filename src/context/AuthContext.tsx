@@ -14,8 +14,8 @@ import type {
     AuditLogEntry,
     AuthRoleIntent,
     AuthUser,
-    FreelancerAccountStatus,
-    FreelancerApplication,
+    ExpertAccountStatus,
+    ExpertApplication
 } from "../types/auth";
 
 const SESSION_KEY = "@auth_session_v1";
@@ -23,9 +23,9 @@ const SESSION_KEY = "@auth_session_v1";
 type AuthContextType = {
   user: AuthUser | null;
   isLoading: boolean;
-  applications: FreelancerApplication[];
+  applications: ExpertApplication[];
   auditLogs: AuditLogEntry[];
-  freelancerStatus: Record<string, FreelancerAccountStatus>;
+  expertStatus: Record<string, ExpertAccountStatus>;
   login: (
     email: string,
     password: string,
@@ -36,9 +36,9 @@ type AuthContextType = {
     password: string;
     name: string;
     role: AuthRoleIntent;
-    managedFreelancerId?: string;
+    managedExpertId?: string;
     acceptedTerms: boolean;
-    acceptedFreelancerCompliance?: boolean;
+    acceptedExpertCompliance?: boolean;
   }) => Promise<
     | { ok: true; requiresApproval?: boolean; message?: string }
     | { ok: false; message: string }
@@ -47,9 +47,9 @@ type AuthContextType = {
     id: string,
     decision: "approved" | "rejected",
   ) => Promise<void>;
-  setFreelancerAccountStatus: (
-    freelancerId: string,
-    status: FreelancerAccountStatus,
+  setExpertAccountStatus: (
+    expertId: string,
+    status: ExpertAccountStatus,
   ) => Promise<void>;
   updateProfile: (fields: Record<string, string>) => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -57,14 +57,14 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
-const DEFAULT_FREELANCER_STATUS: Record<string, FreelancerAccountStatus> = {};
+const DEFAULT_EXPERT_STATUS: Record<string, ExpertAccountStatus> = {};
 
 type BackendAuthUser = {
   id: string;
   email: string;
-  role: "client" | "freelancer" | "admin";
+  role: "user" | "expert" | "admin";
   accountStatus: string;
-  managedFreelancerId?: string;
+  managedExpertId?: string;
   profile?: {
     fullName?: string;
     bio?: string;
@@ -74,6 +74,28 @@ type BackendAuthUser = {
     website?: string;
     location?: string;
     phone?: string;
+    
+    yearsExperience?: number;
+    domain?: string;
+    engagementType?: "remote" | "onsite" | "both";
+    pricingCAD?: number;
+    pricingINR?: number;
+    certifications?: Array<{
+      type: string;
+      number: string;
+      body: string;
+      verified: boolean;
+    }>;
+    linkedinUrl?: string;
+    languages?: string[];
+    availabilityRadius?: number;
+    country?: string;
+    city?: string;
+
+    approvalStatus?: "pending" | "approved" | "rejected";
+    rejectionReason?: string;
+    approvedAt?: string;
+    adminNotes?: string;
   };
 };
 
@@ -81,7 +103,7 @@ type BackendApplication = {
   _id: string;
   email?: string;
   name?: string;
-  freelancerProfileId?: string;
+  expertProfileId?: string;
   status: "pending" | "approved" | "rejected";
   createdAt: string;
   review?: { reviewedAt?: string };
@@ -100,8 +122,8 @@ const toAuditAction = (item: BackendAudit): AuditLogEntry["action"] => {
   if (item.action === "application_reviewed") {
     return item.metadata?.decision === "approved" ? "application_approved" : "application_rejected";
   }
-  if (item.action === "freelancer_status_updated") {
-    return item.metadata?.status === "suspended" ? "freelancer_suspended" : "freelancer_reactivated";
+  if (item.action === "expert_status_updated") {
+    return item.metadata?.status === "suspended" ? "expert_suspended" : "expert_reactivated";
   }
   return "application_rejected";
 };
@@ -109,22 +131,22 @@ const toAuditAction = (item: BackendAudit): AuditLogEntry["action"] => {
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [applications, setApplications] = useState<FreelancerApplication[]>([]);
+  const [applications, setApplications] = useState<ExpertApplication[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
-  const [freelancerStatus, setFreelancerStatus] = useState<
-    Record<string, FreelancerAccountStatus>
-  >(DEFAULT_FREELANCER_STATUS);
+  const [expertStatus, setExpertStatus] = useState<
+    Record<string, ExpertAccountStatus>
+  >(DEFAULT_EXPERT_STATUS);
 
-  const loadFreelancerStatuses = useCallback(async () => {
+  const loadExpertStatuses = useCallback(async () => {
     try {
-      const data = await apiRequest<{ items: Array<{ _id: string; profileStatus: string }> }>("/freelancers");
-      const next: Record<string, FreelancerAccountStatus> = {};
+      const data = await apiRequest<{ items: Array<{ _id: string; profileStatus: string }> }>("/experts");
+      const next: Record<string, ExpertAccountStatus> = {};
       data.items.forEach((item) => {
         next[item._id] = item.profileStatus === "suspended" ? "suspended" : "active";
       });
-      setFreelancerStatus(next);
+      setExpertStatus(next);
     } catch {
-      setFreelancerStatus({});
+      setExpertStatus({});
     }
   }, []);
 
@@ -134,12 +156,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         apiRequest<{ items: BackendApplication[] }>("/admin/applications", { auth: true }),
         apiRequest<{ items: BackendAudit[] }>("/admin/audit-logs", { auth: true }),
       ]);
-      const mappedApps: FreelancerApplication[] = apps.items.map((item) => ({
+      const mappedApps: ExpertApplication[] = apps.items.map((item) => ({
         id: item._id,
         email: item.email || "unknown@email.com",
         password: "",
-        name: item.name || "Freelancer",
-        managedFreelancerId: item.freelancerProfileId || "",
+        name: item.name || "Expert",
+        managedExpertId: item.expertProfileId || "",
         status: item.status,
         createdAt: item.createdAt,
         reviewedAt: item.review?.reviewedAt,
@@ -164,7 +186,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     (async () => {
       try {
         const rawSession = await AsyncStorage.getItem(SESSION_KEY);
-        await loadFreelancerStatuses();
+        await loadExpertStatuses();
         if (rawSession) {
           const parsed = JSON.parse(rawSession) as AuthUser;
           // Validate token by hitting a protected endpoint
@@ -190,7 +212,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(false);
       }
     })();
-  }, [loadAdminData, loadFreelancerStatuses]);
+  }, [loadAdminData, loadExpertStatuses]);
 
   const persistSession = useCallback(async (next: AuthUser | null) => {
     setUser(next);
@@ -238,7 +260,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           email: data.user.email,
           role: data.user.role,
           name: data.user.profile?.fullName || data.user.email.split("@")[0],
-          managedFreelancerId: data.user.managedFreelancerId,
+          managedExpertId: data.user.managedExpertId,
           profile: data.user.profile,
         };
         await persistSession(nextUser);
@@ -263,9 +285,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       password: string;
       name: string;
       role: AuthRoleIntent;
-      managedFreelancerId?: string;
+      managedExpertId?: string;
       acceptedTerms: boolean;
-      acceptedFreelancerCompliance?: boolean;
+      acceptedExpertCompliance?: boolean;
     }) => {
       const normalizedEmail = input.email.trim().toLowerCase();
       const trimmedName = input.name.trim();
@@ -282,7 +304,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           message: "You must accept the Terms and Conditions to register.",
         };
       }
-      if (input.role === "freelancer" && !input.acceptedFreelancerCompliance) {
+      if (input.role === "expert" && !input.acceptedExpertCompliance) {
         return {
           ok: false as const,
           message: "You must confirm the professional credentials declaration.",
@@ -305,10 +327,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             fullName: trimmedName,
             role: input.role,
             acceptedTerms: input.acceptedTerms,
-            acceptedFreelancerCompliance: input.acceptedFreelancerCompliance ?? false,
+            acceptedExpertCompliance: input.acceptedExpertCompliance ?? false,
           },
         });
-        if (input.role === "freelancer") {
+        if (input.role === "expert") {
           await clearTokens();
           return {
             ok: true as const,
@@ -322,7 +344,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           email: data.user.email,
           role: data.user.role,
           name: data.user.profile?.fullName || trimmedName,
-          managedFreelancerId: data.user.managedFreelancerId,
+          managedExpertId: data.user.managedExpertId,
           profile: data.user.profile,
         });
         // Register device token for push notifications (non-blocking).
@@ -342,21 +364,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         body: { decision },
         auth: true,
       });
-      await Promise.all([loadAdminData(), loadFreelancerStatuses()]);
+      await Promise.all([loadAdminData(), loadExpertStatuses()]);
     },
-    [loadAdminData, loadFreelancerStatuses],
+    [loadAdminData, loadExpertStatuses],
   );
 
-  const setFreelancerAccountStatus = useCallback(
-    async (freelancerId: string, status: FreelancerAccountStatus) => {
-      await apiRequest(`/admin/freelancers/${freelancerId}/status`, {
+  const setExpertAccountStatus = useCallback(
+    async (expertId: string, status: ExpertAccountStatus) => {
+      await apiRequest(`/admin/experts/${expertId}/status`, {
         method: "PATCH",
         body: { status },
         auth: true,
       });
-      await Promise.all([loadAdminData(), loadFreelancerStatuses()]);
+      await Promise.all([loadAdminData(), loadExpertStatuses()]);
     },
-    [loadAdminData, loadFreelancerStatuses],
+    [loadAdminData, loadExpertStatuses],
   );
 
   const refreshUser = useCallback(async () => {
@@ -367,7 +389,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email: data.email,
         role: data.role,
         name: data.profile?.fullName || data.email.split("@")[0],
-        managedFreelancerId: data.managedFreelancerId,
+        managedExpertId: data.managedExpertId,
         profile: data.profile,
       };
       await persistSession(nextUser);
@@ -403,11 +425,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isLoading,
       applications,
       auditLogs,
-      freelancerStatus,
+      expertStatus,
       login,
       register,
       reviewApplication,
-      setFreelancerAccountStatus,
+      setExpertAccountStatus,
       updateProfile,
       refreshUser,
       logout,
@@ -417,11 +439,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isLoading,
       applications,
       auditLogs,
-      freelancerStatus,
+      expertStatus,
       login,
       register,
       reviewApplication,
-      setFreelancerAccountStatus,
+      setExpertAccountStatus,
       updateProfile,
       refreshUser,
       logout,

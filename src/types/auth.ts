@@ -2,9 +2,9 @@ export type AuthUser = {
   id: string;
   email: string;
   name: string;
-  role: "client" | "freelancer" | "admin";
-  /** Linked public freelancer profile id (freelancer role only) */
-  managedFreelancerId?: string;
+  role: "user" | "expert" | "admin";
+  /** Linked public expert profile id (expert role only) */
+  managedExpertId?: string;
   /** Extended profile fields */
   profile?: {
     fullName?: string;
@@ -15,21 +15,45 @@ export type AuthUser = {
     website?: string;
     location?: string;
     phone?: string;
+    
+    // Expert-specific
+    yearsExperience?: number;
+    domain?: string;
+    engagementType?: "remote" | "onsite" | "both";
+    pricingCAD?: number;
+    pricingINR?: number;
+    certifications?: Array<{
+      type: string;
+      number: string;
+      body: string;
+      verified: boolean;
+    }>;
+    linkedinUrl?: string;
+    languages?: string[];
+    availabilityRadius?: number;
+    country?: string;
+    city?: string;
+
+    // Approval tracking
+    approvalStatus?: "pending" | "approved" | "rejected";
+    rejectionReason?: string;
+    approvedAt?: string;
+    adminNotes?: string;
   };
 };
 
-export type AuthRoleIntent = "client" | "freelancer" | "admin";
+export type AuthRoleIntent = "user" | "expert" | "admin";
 
-export type FreelancerApplicationStatus = "pending" | "approved" | "rejected";
-export type FreelancerAccountStatus = "active" | "suspended";
+export type ExpertApplicationStatus = "pending" | "approved" | "rejected";
+export type ExpertAccountStatus = "active" | "suspended";
 
-export type FreelancerApplication = {
+export type ExpertApplication = {
   id: string;
   email: string;
   password: string;
   name: string;
-  managedFreelancerId: string;
-  status: FreelancerApplicationStatus;
+  managedExpertId: string;
+  status: ExpertApplicationStatus;
   createdAt: string;
   reviewedAt?: string;
 };
@@ -37,8 +61,8 @@ export type FreelancerApplication = {
 export type AuditAction =
   | "application_approved"
   | "application_rejected"
-  | "freelancer_suspended"
-  | "freelancer_reactivated";
+  | "expert_suspended"
+  | "expert_reactivated";
 
 export type AuditLogEntry = {
   id: string;

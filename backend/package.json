@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "lint": "echo \"No lint configured yet\""
+    "lint": "echo \"No lint configured yet\"",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -22,6 +24,8 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "jest": "^30.4.2",
+    "mongodb-memory-server": "^11.2.0",
     "nodemon": "^3.1.10"
   }
 }

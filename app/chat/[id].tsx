@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -90,6 +90,14 @@ export default function ChatScreen() {
           headerTintColor: colors.textPrimary,
           headerTitleStyle: { fontWeight: "600" },
           headerShadowVisible: false,
+          headerLeft: () => (
+            <Pressable 
+              onPress={() => router.back()} 
+              style={{ padding: 8, marginLeft: -8 }}
+            >
+              <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+            </Pressable>
+          ),
         }} 
       />
       

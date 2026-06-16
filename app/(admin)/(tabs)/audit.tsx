@@ -53,10 +53,10 @@ function formatAction(action: string) {
       return "Application approved";
     case "application_rejected":
       return "Application rejected";
-    case "freelancer_suspended":
-      return "Freelancer suspended";
-    case "freelancer_reactivated":
-      return "Freelancer reactivated";
+    case "expert_suspended":
+      return "Expert suspended";
+    case "expert_reactivated":
+      return "Expert reactivated";
     default:
       return action;
   }

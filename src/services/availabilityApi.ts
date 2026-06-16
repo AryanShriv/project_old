@@ -1,43 +1,43 @@
 import type { Availability, AvailabilityException, DaySlot, ExceptionKind } from "../types/availability";
 import { apiRequest } from "./apiClient";
 
-export async function fetchAvailability(freelancerId: string) {
-  return apiRequest<Availability>(`/availability/${freelancerId}`, { auth: true });
+export async function fetchAvailability(expertId: string) {
+  return apiRequest<Availability>(`/availability/${expertId}`, { auth: true });
 }
 
 export async function saveAvailability(
-  freelancerId: string,
+  expertId: string,
   payload: { timezone?: string; slots: DaySlot[] }
 ) {
-  return apiRequest<Availability>(`/availability/${freelancerId}`, {
+  return apiRequest<Availability>(`/availability/${expertId}`, {
     method: "PUT",
     auth: true,
     body: payload,
   });
 }
 
-export async function fetchAvailabilityExceptions(freelancerId: string, month: string) {
+export async function fetchAvailabilityExceptions(expertId: string, month: string) {
   const data = await apiRequest<{ items: AvailabilityException[] }>(
-    `/availability/${freelancerId}/exceptions?month=${month}`,
+    `/availability/${expertId}/exceptions?month=${month}`,
     { auth: true }
   );
   return data.items;
 }
 
 export async function upsertAvailabilityException(
-  freelancerId: string,
+  expertId: string,
   date: string,
   payload: { kind: ExceptionKind; startTime?: string; endTime?: string; note?: string }
 ) {
-  return apiRequest<AvailabilityException>(`/availability/${freelancerId}/exceptions/${date}`, {
+  return apiRequest<AvailabilityException>(`/availability/${expertId}/exceptions/${date}`, {
     method: "PUT",
     auth: true,
     body: payload,
   });
 }
 
-export async function deleteAvailabilityException(freelancerId: string, date: string) {
-  return apiRequest<{ date: string }>(`/availability/${freelancerId}/exceptions/${date}`, {
+export async function deleteAvailabilityException(expertId: string, date: string) {
+  return apiRequest<{ date: string }>(`/availability/${expertId}/exceptions/${date}`, {
     method: "DELETE",
     auth: true,
   });

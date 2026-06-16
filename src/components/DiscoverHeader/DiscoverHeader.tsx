@@ -1,15 +1,16 @@
+import { useTheme } from "@/src/context/ThemeContext";
 import React, { useMemo } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { createStyles } from "./styles";
-import { useTheme } from "@/src/context/ThemeContext";
 
-const filters = ["All", "Design", "Mobile", "Backend", "AI", "Product"];
+
 
 type Props = {
   search: string;
   onSearchChange: (text: string) => void;
   activeFilter: string;
   onFilterChange: (filter: string) => void;
+  filters: string[];
 };
 
 export const DiscoverHeader = ({
@@ -17,6 +18,7 @@ export const DiscoverHeader = ({
   onSearchChange,
   activeFilter,
   onFilterChange,
+  filters,
 }: Props) => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -24,7 +26,7 @@ export const DiscoverHeader = ({
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Curated Experts</Text>
-      <Text style={styles.subtitle}>Find the perfect freelancer for your project</Text>
+      <Text style={styles.subtitle}>Find the perfect expert for your project</Text>
 
       <TextInput
         placeholder="Search experts..."

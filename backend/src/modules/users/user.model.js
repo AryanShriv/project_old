@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
     passwordHash: { type: String, required: true },
-    role: { type: String, enum: ["client", "freelancer", "admin"], default: "client", index: true },
+    role: { type: String, enum: ["user", "expert", "admin"], default: "user", index: true },
     accountStatus: {
       type: String,
       enum: ["active", "pending_review", "suspended"],
@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema(
     pushTokens: { type: [String], default: [] },
     legalAcceptance: {
       termsAcceptedAt: { type: Date, default: null },
-      freelancerComplianceAcceptedAt: { type: Date, default: null },
+      expertComplianceAcceptedAt: { type: Date, default: null },
     },
   },
   { timestamps: true, versionKey: false }
