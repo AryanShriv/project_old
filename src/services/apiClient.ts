@@ -7,7 +7,7 @@ export const REFRESH_TOKEN_KEY = "@api_refresh_token_v1";
 
 // Use local backend for development since it contains the latest user/expert role updates
 const API_BASE = process.env.EXPO_PUBLIC_API_URL 
-  || (Platform.OS === 'android' ? 'http://10.0.2.2:4000/api/v1' : 'http://localhost:4000/api/v1');
+  || (__DEV__ ? (Platform.OS === 'android' ? 'http://10.0.2.2:4000/api/v1' : 'http://localhost:4000/api/v1') : 'https://project-old.onrender.com/api/v1');
 
 type ApiOptions = {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
