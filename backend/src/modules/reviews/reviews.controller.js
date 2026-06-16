@@ -81,7 +81,7 @@ const submitReview = async (req, res) => {
     const expert = await ExpertProfile.findById(expertId);
     if (expert) {
       expert.reviewCount = expert.reviewCount + 1;
-      if (wouldRecommend) {
+      if (review.wouldRecommend) {
         expert.recommendedCount = (expert.recommendedCount || 0) + 1;
       }
       await expert.save();
