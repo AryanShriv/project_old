@@ -7,7 +7,8 @@ import { getConversations, getMessages, markAsRead as markAsReadApi } from "../s
 import { Conversation, Message } from "../types/chat";
 import { useAuth } from "./AuthContext";
 
-const API_BASE = Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://localhost:4000';
+const API_BASE = process.env.EXPO_PUBLIC_SOCKET_URL
+  || (Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://localhost:4000');
 
 type ChatContextType = {
   conversations: Conversation[];
