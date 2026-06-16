@@ -61,8 +61,10 @@ export const light = {
   border: neutral[300],           // #D1D1C9
 
   // Tab Bar
-  tabBarActive: gold[400],        // #BA7517
-  tabBarInactive: neutral[500],   // #6B6B61
+  tabBarActive: "#BA7517",
+  tabBarInactive: "#9E9B91",
+  tabBarBackground: "#FFFFFF",
+  tabBarBorder: "rgba(26, 25, 22, 0.10)",
 
   // Overlay
   overlay: "rgba(15, 15, 13, 0.5)", // Dark overlay with warmth
@@ -94,8 +96,10 @@ export const dark = {
   divider: "rgba(232, 232, 227, 0.1)",
   border: "rgba(232, 232, 227, 0.15)",
 
-  tabBarActive: gold[100],        // #FAC775 lighter for dark mode
-  tabBarInactive: neutral[400],
+  tabBarActive: "#BA7517",        // Gold stays gold
+  tabBarInactive: "#5A5750",
+  tabBarBackground: "#1A1916",
+  tabBarBorder: "rgba(242, 241, 237, 0.10)",
 
   overlay: "rgba(0, 0, 0, 0.7)",
 

@@ -17,9 +17,9 @@ export default function AdminTabsLayout() {
         tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isDark ? "rgba(15, 23, 42, 0.92)" : "rgba(255, 255, 255, 0.92)",
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: colors.divider,
+          backgroundColor: colors.tabBarBackground,
+          borderTopWidth: 0.5,
+          borderTopColor: colors.tabBarBorder,
           elevation: 0,
           paddingTop: 6,
           paddingBottom: Math.max(insets.bottom, 6),
