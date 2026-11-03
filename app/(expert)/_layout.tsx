@@ -1,82 +1,64 @@
+import { Ionicons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
-import { Redirect, Stack } from "expo-router";
-import { useState } from "react";
+import { Redirect, router, Stack } from "expo-router";
+import { useMemo } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { colors } from "@/src/design-system/colors";
+import { ThemeColors } from "@/src/design-system/colors";
+import { radius } from "@/src/design-system/radius";
+import { minTapTarget, spacing } from "@/src/design-system/spacing";
+import { typography } from "@/src/design-system/typography";
 
 export default function ExpertLayout() {
   const { user, isLoading, expertStatus } = useAuth();
+  const { colors } = useTheme();
 
   if (isLoading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   if (!user || user.role !== "expert") {
-    return (
-      <Redirect href={"/(auth)/login?intent=expert" as Href} />
-    );
-  }
-
-  if (
-    user.managedExpertId &&
-    expertStatus[user.managedExpertId] === "suspended"
-  ) {
     return <Redirect href={"/(auth)/login?intent=expert" as Href} />;
   }
 
-  // Experts stay locked out of the dashboard until an admin approves their application
-  if (user.accountStatus === "pending_review") {
-    return <ApplicationStatusScreen />;
+  const isSuspended =
+    user.accountStatus === "suspended" ||
+    (user.managedExpertId !== undefined && expertStatus[user.managedExpertId] === "suspended");
+  if (isSuspended) {
+    return <SuspendedScreen />;
   }
 
+  // Pending and rejected experts can use the app to finish their profile and availability.
+  // The dashboard shows a warm status banner; the backend keeps them out of Discover until approved.
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
-function ApplicationStatusScreen() {
-  const { user, refreshUser, logout } = useAuth();
-  const { colors: themeColors } = useTheme();
-  const [checking, setChecking] = useState(false);
-  const isRejected = user?.approvalStatus === "rejected";
-
-  const handleCheck = async () => {
-    setChecking(true);
-    await refreshUser();
-    setChecking(false);
-  };
+function SuspendedScreen() {
+  const { logout } = useAuth();
+  const { colors } = useTheme();
+  const themed = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <View style={[styles.center, styles.padded, { backgroundColor: themeColors.background }]}>
-      <Text style={[styles.title, { color: themeColors.textPrimary }]}>
-        {isRejected ? "Application not approved" : "Application under review"}
+    <View style={[styles.center, themed.container]}>
+      <View style={themed.iconWrap}>
+        <Ionicons name="pause-circle-outline" size={32} color={colors.onPrimaryMuted} />
+      </View>
+      <Text style={themed.title}>Your profile is paused</Text>
+      <Text style={themed.body}>
+        Your expert profile is not visible to people right now. This can happen while our team looks
+        into something on your account. We would like to help sort it out.
       </Text>
-      <Text style={[styles.body, { color: themeColors.textSecondary }]}>
-        {isRejected
-          ? user?.rejectionReason || "An admin reviewed your application and did not approve it."
-          : "An admin is reviewing your expert application. You'll get access to your dashboard once it's approved."}
-      </Text>
-      <Pressable
-        style={[styles.btn, { backgroundColor: themeColors.primary }]}
-        onPress={handleCheck}
-        disabled={checking}
-      >
-        {checking ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.btnPrimaryText}>Check status</Text>
-        )}
+      <Pressable style={[themed.btn, themed.btnPrimary]} onPress={() => router.push("/help" as Href)}>
+        <Text style={themed.btnPrimaryText}>Contact support</Text>
       </Pressable>
-      <Pressable
-        style={[styles.btn, styles.btnGhost, { borderColor: themeColors.border }]}
-        onPress={logout}
-      >
-        <Text style={[styles.btnGhostText, { color: themeColors.textSecondary }]}>Log out</Text>
+      <Pressable style={[themed.btn, themed.btnGhost]} onPress={logout}>
+        <Text style={themed.btnGhostText}>Log out</Text>
       </Pressable>
     </View>
   );
@@ -87,41 +69,59 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.background,
-  },
-  padded: {
-    paddingHorizontal: 24,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  body: {
-    marginTop: 8,
-    marginBottom: 24,
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
-  },
-  btn: {
-    width: "100%",
-    maxWidth: 320,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 12,
-  },
-  btnGhost: {
-    borderWidth: 1,
-  },
-  btnPrimaryText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  btnGhostText: {
-    fontWeight: "600",
-    fontSize: 15,
   },
 });
+
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: colors.background,
+      paddingHorizontal: spacing.lg,
+    },
+    iconWrap: {
+      width: 64,
+      height: 64,
+      borderRadius: radius.full,
+      backgroundColor: colors.primaryMuted,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: spacing.md,
+    },
+    title: {
+      ...typography.h1,
+      color: colors.textPrimary,
+      textAlign: "center",
+    },
+    body: {
+      ...typography.body,
+      color: colors.textSecondary,
+      textAlign: "center",
+      marginTop: spacing.xs,
+      marginBottom: spacing.lg,
+      maxWidth: 360,
+    },
+    btn: {
+      width: "100%",
+      maxWidth: 320,
+      minHeight: minTapTarget,
+      borderRadius: radius.md,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: spacing.sm,
+    },
+    btnPrimary: {
+      backgroundColor: colors.primary,
+    },
+    btnPrimaryText: {
+      ...typography.button,
+      color: colors.onPrimary,
+    },
+    btnGhost: {
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    btnGhostText: {
+      ...typography.button,
+      color: colors.textSecondary,
+    },
+  });

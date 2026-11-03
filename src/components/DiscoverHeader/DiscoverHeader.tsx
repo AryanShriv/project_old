@@ -26,7 +26,7 @@ export const DiscoverHeader = ({
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Curated Experts</Text>
-      <Text style={styles.subtitle}>Find the perfect expert for your project</Text>
+      <Text style={styles.subtitle}>{"Learn from someone who's already done it"}</Text>
 
       <TextInput
         placeholder="Search experts..."

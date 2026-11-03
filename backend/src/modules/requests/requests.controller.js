@@ -3,16 +3,30 @@ const { z } = require("zod");
 const { sendSuccess, sendError } = require("../../utils/http");
 const Request = require("./request.model");
 const ExpertProfile = require("../experts/expert.model");
+const { expireRequest } = require("./requests.expiry");
 
-const createSchema = z.object({
-  expertId: z.string().trim().min(1),
-  projectTitle: z.string().trim().min(3).max(160).optional(),
-  description: z.string().trim().max(4000).optional(),
-  budget: z.number().min(0).optional(),
-  userMessage: z.string().trim().min(10).max(500).optional(),
-  engagementType: z.enum(["remote", "onsite", "both", "ongoing"]).optional(),
-  timingPreference: z.enum(["asap", "week", "month", "flexible"]).optional(),
-});
+// PRD 3.5 payload: expertId, headline, description, sessionType, timingPreference.
+// projectTitle / userMessage / engagementType are still accepted from older app builds.
+// Unknown keys (including the removed `budget`) are stripped by zod.
+const createSchema = z
+  .object({
+    expertId: z.string().trim().min(1),
+    headline: z.string().trim().min(3).max(100).optional(),
+    description: z.string().trim().min(50).max(500).optional(),
+    sessionType: z.enum(["remote", "onsite", "ongoing"]).optional(),
+    timingPreference: z.enum(["asap", "week", "month", "flexible"]).optional(),
+
+    projectTitle: z.string().trim().min(3).max(160).optional(),
+    userMessage: z.string().trim().min(10).max(500).optional(),
+    engagementType: z.enum(["remote", "onsite", "both", "ongoing"]).optional(),
+  })
+  .refine((data) => data.headline || data.projectTitle || data.userMessage, {
+    message: "headline is required",
+    path: ["headline"],
+  });
+
+const toSessionType = (engagementType) =>
+  engagementType === "onsite" || engagementType === "ongoing" ? engagementType : "remote";
 
 const listSchema = z.object({
   role: z.enum(["user", "expert"]).optional(),
@@ -38,39 +52,39 @@ const createRequest = async (req, res) => {
     return sendError(res, "Invalid request payload", 400, parsed.error.flatten());
   }
 
-  const {
-    expertId,
-    projectTitle,
-    description = "",
-    budget = 0,
-    userMessage = "",
-    engagementType = "remote",
-    timingPreference = "flexible",
-  } = parsed.data;
+  const data = parsed.data;
+  const { expertId, timingPreference = "flexible" } = data;
+  const headline = data.headline || data.projectTitle || data.userMessage.substring(0, 100);
+  const description = data.description || data.userMessage || "";
+  const sessionType = data.sessionType || toSessionType(data.engagementType);
 
   if (!mongoose.isValidObjectId(expertId)) {
     return sendError(res, "Invalid expertId", 400);
   }
 
-  const expert = await ExpertProfile.findById(expertId).select("_id profileStatus");
+  const expert = await ExpertProfile.findById(expertId).select("_id profileStatus country");
   if (!expert) {
     return sendError(res, "Expert not found", 404);
   }
   if (expert.profileStatus !== "active") {
     return sendError(res, "Expert is not accepting requests", 400);
   }
-
-  const finalTitle = projectTitle || userMessage.substring(0, 160) || "Untitled Request";
+  // On-site sessions are only offered in Canada
+  if (sessionType === "onsite" && (expert.country || "").toLowerCase() !== "canada") {
+    return sendError(res, "On-site sessions are only available with experts in Canada", 400);
+  }
 
   const created = await Request.create({
     userId: req.auth.sub,
     expertId: expert._id,
-    projectTitle: finalTitle,
+    headline,
     description,
-    budget,
-    userMessage,
-    engagementType,
+    sessionType,
     timingPreference,
+    // Legacy mirrors for older app builds
+    projectTitle: headline,
+    userMessage: description,
+    engagementType: sessionType,
     status: "pending",
   });
 
@@ -158,8 +172,7 @@ const updateRequestStatus = async (req, res) => {
   }
 
   if (requestDoc.status === "pending" && requestDoc.expiresAt && requestDoc.expiresAt < new Date()) {
-    requestDoc.status = "expired";
-    await requestDoc.save();
+    await expireRequest(requestDoc._id);
     return sendError(res, "Request has expired", 400);
   }
 
@@ -172,6 +185,9 @@ const updateRequestStatus = async (req, res) => {
   requestDoc.status = nextStatus;
   if (nextStatus === "accepted" || nextStatus === "rejected") {
     requestDoc.respondedAt = new Date();
+  }
+  if (nextStatus === "completed") {
+    requestDoc.completedAt = new Date();
   }
   await requestDoc.save();
 

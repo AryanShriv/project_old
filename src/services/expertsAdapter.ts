@@ -31,6 +31,16 @@ type ApiExpert = {
   recommendedCount?: number;
 };
 
+/** Price per session in the expert's local currency; empty when the expert has not set one. */
+const formatSessionPrice = (item: ApiExpert): string => {
+  const country = item.country?.toLowerCase();
+  if (country === "india" && item.pricingINR) return `₹${item.pricingINR.toLocaleString("en-IN")}`;
+  if (country === "canada" && item.pricingCAD) return `CA$${item.pricingCAD}`;
+  if (item.pricingCAD) return `CA$${item.pricingCAD}`;
+  if (item.pricingINR) return `₹${item.pricingINR.toLocaleString("en-IN")}`;
+  return item.hourlyRate ? `$${item.hourlyRate}` : "";
+};
+
 export const mapApiExpertToUi = (item: ApiExpert): Expert => ({
   id: item._id,
   name: item.fullName,
@@ -38,7 +48,9 @@ export const mapApiExpertToUi = (item: ApiExpert): Expert => ({
   yearsExperience: String(item.yearsExperience ?? 0),
   tagline: item.bio || "Experienced expert professional.",
   rate: `$${item.hourlyRate ?? 0}`,
-  avatar: item.avatarUrl || "https://ui-avatars.com/api/?name=" + encodeURIComponent(item.fullName || "User") + "&background=BA7517&color=FAEEDA",
+  sessionPrice: formatSessionPrice(item),
+  // Empty when there is no photo: <Avatar> renders initials instead of calling an external service
+  avatar: item.avatarUrl || "",
   skills: item.skills ?? [],
   
   // Map new fields
@@ -53,6 +65,8 @@ export const mapApiExpertToUi = (item: ApiExpert): Expert => ({
   availabilityRadius: item.availabilityRadius,
   certifications: item.certifications,
   approvalStatus: item.approvalStatus,
+  // The Verified badge is only earned through admin approval (PRD 4.4)
+  verified: item.approvalStatus === "approved",
   rejectionReason: item.rejectionReason,
   approvedAt: item.approvedAt,
   adminNotes: item.adminNotes,

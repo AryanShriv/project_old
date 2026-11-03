@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   badgeActive: { backgroundColor: "rgba(34, 197, 94, 0.14)" },
   badgeSuspended: { backgroundColor: "rgba(239, 68, 68, 0.12)" },
-  badgeText: { textTransform: "capitalize", fontWeight: "700", fontSize: 12 },
+  badgeText: { textTransform: "capitalize", fontWeight: "700", fontSize: 13 },
   badgeTextActive: { color: "#166534" },
   badgeTextSuspended: { color: "#991b1b" },
   action: {

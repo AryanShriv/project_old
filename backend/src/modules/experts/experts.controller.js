@@ -75,12 +75,15 @@ const listExperts = async (req, res) => {
 
   const skip = (page - 1) * limit;
   const [items, total] = await Promise.all([
-    ExpertProfile.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    ExpertProfile.find(filter).select(ADMIN_ONLY_FIELDS).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     ExpertProfile.countDocuments(filter),
   ]);
 
   return sendSuccess(res, { items, pagination: { page, limit, total } }, "Experts fetched");
 };
+
+// Internal review data that must never reach the public Discover or profile responses
+const ADMIN_ONLY_FIELDS = "-adminNotes -rejectionReason";
 
 const getExpertById = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
@@ -97,6 +100,11 @@ const getExpertById = async (req, res) => {
   const isOwner = requesterUserId && expert.userId.toString() === requesterUserId;
   if (expert.profileStatus !== "active" && requesterRole !== "admin" && !isOwner) {
     return sendError(res, "Expert not available", 404);
+  }
+
+  if (requesterRole !== "admin" && !isOwner) {
+    delete expert.adminNotes;
+    delete expert.rejectionReason;
   }
 
   return sendSuccess(res, expert, "Expert fetched");

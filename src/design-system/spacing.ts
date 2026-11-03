@@ -15,4 +15,4 @@ export const spacing = {
 };
 
 // Minimum tap target size (accessibility)
-export const minTapTarget = 44; // 44pt minimum (48pt preferred)
+export const minTapTarget = 48; // 48pt minimum (PRD 3.7)

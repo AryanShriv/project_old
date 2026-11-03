@@ -82,5 +82,5 @@ const styles = StyleSheet.create({
   },
   action: { fontSize: 16, fontWeight: "700", color: colors.textPrimary },
   meta: { marginTop: 4, fontSize: 13, color: colors.textSecondary },
-  details: { marginTop: 6, fontSize: 12, color: colors.textMuted },
+  details: { marginTop: 6, fontSize: 13, color: colors.textMuted },
 });

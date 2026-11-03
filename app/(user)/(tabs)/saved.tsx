@@ -10,7 +10,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useExperts } from "@/src/context/ExpertsContext";
 import { useSaved } from "@/src/context/SavedContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { ThemeColors } from "@/src/design-system/colors";
+import { ThemeColors, brand } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { minTapTarget, spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
@@ -102,7 +102,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   primaryBtnText: {
     ...typography.button,
-    color: "#FFFFFF",
+    color: brand.onPrimary,
   },
   header: {
     paddingHorizontal: spacing.md,

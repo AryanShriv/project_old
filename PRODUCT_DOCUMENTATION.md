@@ -741,20 +741,9 @@ G(old) design system emphasizes:
 
 ## Quick Reference
 
-### Demo Accounts
-```typescript
-// Client
-email: client@gold.com
-password: demo
-
-// Freelancer
-email: freelancer@gold.com
-password: demo
-
-// Admin
-email: admin@gold.com
-password: demo
-```
+### Test Accounts
+Test credentials are not kept in the repo. The first admin is created from `ADMIN_EMAIL` / `ADMIN_PASSWORD`
+in `backend/.env` (see `backend/src/config/seedAdmin.js`); create users and experts through the app's sign-up flow.
 
 ### Important Commands
 ```bash

@@ -16,7 +16,7 @@ export default function AdminProfileScreen() {
       <View style={styles.content}>
         <Text style={styles.kicker}>Admin</Text>
         <Text style={styles.name}>{user?.name ?? "Platform Admin"}</Text>
-        <Text style={styles.email}>{user?.email ?? "admin@demo.com"}</Text>
+        <Text style={styles.email}>{user?.email ?? ""}</Text>
 
         <Pressable
           style={styles.button}
@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.textPrimary,
   },
-  email: { marginTop: 4, fontSize: 15, color: colors.textSecondary },
+  email: { marginTop: 4, fontSize: 16, color: colors.textSecondary },
   button: {
     marginTop: spacing.lg,
     backgroundColor: colors.surface,

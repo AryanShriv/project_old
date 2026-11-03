@@ -1,17 +1,18 @@
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Avatar } from "@/src/components/Avatar/Avatar";
 import { EmptyState } from "@/src/components/EmptyState/EmptyState";
 import { useAuth } from "@/src/context/AuthContext";
 import { useChat } from "@/src/context/ChatContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
+import { brand } from "@/src/design-system/colors";
 
-export default function FreelancerMessagesScreen() {
+export default function ExpertMessagesScreen() {
   const { conversations } = useChat();
   const { user } = useAuth();
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function FreelancerMessagesScreen() {
         <EmptyState
           icon="chatbubbles-outline"
           title="No messages yet"
-          subtitle="When you accept a client's request, a conversation will be created here."
+          subtitle="When you accept someone's request, a conversation will be created here."
         />
       </SafeAreaView>
     );
@@ -55,13 +56,13 @@ export default function FreelancerMessagesScreen() {
                 router.push(`/chat/${item._id}`);
               }}
             >
-              <Image
-                source={{
-                  uri: otherParticipant?.profile?.avatarUrl || 
-                       `https://ui-avatars.com/api/?name=${encodeURIComponent(otherParticipant?.profile?.fullName || otherParticipant?.email || 'User')}&background=F4CF87&color=58360B`
-                }}
-                style={styles.avatar}
-              />
+              <View style={styles.avatar}>
+                <Avatar
+                  uri={otherParticipant?.profile?.avatarUrl}
+                  name={otherParticipant?.profile?.fullName || otherParticipant?.email || "User"}
+                  size={50}
+                />
+              </View>
               <View style={styles.content}>
                 <View style={styles.topRow}>
                   <Text style={[styles.name, { color: colors.textPrimary }, hasUnread && styles.nameUnread]} numberOfLines={1}>
@@ -117,9 +118,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
     marginRight: spacing.sm,
   },
   content: {
@@ -166,8 +164,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   unreadText: {
-    color: "#fff",
-    fontSize: 12,
+    color: brand.onPrimary,
+    fontSize: 13,
     fontWeight: "700",
   },
 });

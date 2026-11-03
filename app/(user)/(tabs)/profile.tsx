@@ -21,9 +21,9 @@ import Toast from "react-native-toast-message";
 
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { ThemeColors } from "@/src/design-system/colors";
+import { ThemeColors, brand } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
-import { spacing } from "@/src/design-system/spacing";
+import { minTapTarget, spacing } from "@/src/design-system/spacing";
 
 const settingsRows: {
   id: string;
@@ -35,7 +35,7 @@ const settingsRows: {
   { id: "terms", label: "Terms & Conditions", icon: "document-text-outline" },
 ];
 
-export default function ClientProfileScreen() {
+export default function UserProfileScreen() {
   const { user, logout, updateProfile, refreshUser } = useAuth();
   const { colors, toggleTheme, isDark } = useTheme();
 
@@ -112,17 +112,16 @@ export default function ClientProfileScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <ScrollView contentContainerStyle={styles.guestContent}>
-          <Text style={styles.guestTitle}>Sign in to hire</Text>
+          <Text style={styles.guestTitle}>Sign in to request a session</Text>
           <Text style={styles.guestSub}>
-            Create an account or sign in to save experts and send consultation
-            requests.
+            Create an account or sign in to save experts and request sessions.
           </Text>
           <Pressable
             style={styles.primaryBtn}
             onPress={() =>
               router.push({
                 pathname: "/(auth)/login",
-                params: { intent: "client" },
+                params: { intent: "user" },
               } as Href)
             }
           >
@@ -133,7 +132,7 @@ export default function ClientProfileScreen() {
             onPress={() =>
               router.push({
                 pathname: "/(auth)/signup",
-                params: { intent: "client" },
+                params: { intent: "user" },
               } as Href)
             }
           >
@@ -144,7 +143,7 @@ export default function ClientProfileScreen() {
 
           <Text style={styles.guestTitle}>Expert?</Text>
           <Text style={styles.guestSub}>
-            Sign in with your expert account to manage leads and inbox.
+            Sign in with your expert account to see your requests and messages.
           </Text>
           <Pressable
             style={styles.secondaryBtn}
@@ -175,7 +174,7 @@ export default function ClientProfileScreen() {
               value={isDark}
               onValueChange={toggleTheme}
               trackColor={{ false: colors.divider, true: colors.primary }}
-              thumbColor={"#fff"}
+              thumbColor={brand.onPrimary}
             />
           </View>
         </ScrollView>
@@ -389,7 +388,7 @@ export default function ClientProfileScreen() {
                 disabled={isSaving}
               >
                 {isSaving ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator color={brand.onPrimary} size="small" />
                 ) : (
                   <Text style={styles.btnSaveText}>Save Changes</Text>
                 )}
@@ -448,7 +447,7 @@ export default function ClientProfileScreen() {
               value={isDark}
               onValueChange={toggleTheme}
               trackColor={{ false: colors.divider, true: colors.primary }}
-              thumbColor={"#fff"}
+              thumbColor={brand.onPrimary}
             />
           </View>
 
@@ -549,7 +548,7 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: spacing.sm,
     },
     primaryBtnText: {
-      color: "#fff",
+      color: brand.onPrimary,
       fontSize: 16,
       fontWeight: "700",
     },
@@ -606,13 +605,13 @@ const createStyles = (colors: ThemeColors) =>
     },
     headline: {
       marginTop: 4,
-      fontSize: 15,
+      fontSize: 16,
       color: colors.textSecondary,
       textAlign: "center",
     },
     email: {
       marginTop: 6,
-      fontSize: 15,
+      fontSize: 16,
       color: colors.textMuted,
     },
     editBtn: {
@@ -651,7 +650,7 @@ const createStyles = (colors: ThemeColors) =>
       flex: 1,
     },
     summaryLabel: {
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: "600",
       color: colors.textMuted,
       textTransform: "uppercase",
@@ -659,7 +658,7 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: 2,
     },
     summaryValue: {
-      fontSize: 15,
+      fontSize: 16,
       color: colors.textPrimary,
       lineHeight: 22,
     },
@@ -694,7 +693,8 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.border,
       borderRadius: radius.md,
       padding: spacing.sm,
-      fontSize: 14,
+      minHeight: minTapTarget,
+      fontSize: 16,
       color: colors.textPrimary,
       backgroundColor: colors.background,
     },
@@ -730,7 +730,7 @@ const createStyles = (colors: ThemeColors) =>
     btnSaveText: {
       fontSize: 14,
       fontWeight: "600",
-      color: "#fff",
+      color: brand.onPrimary,
     },
     btnDisabled: {
       opacity: 0.6,

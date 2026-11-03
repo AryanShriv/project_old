@@ -2,7 +2,7 @@ import { StyleSheet } from "react-native";
 import { ThemeColors } from "../../design-system/colors";
 import { radius } from "../../design-system/radius";
 import { shadows } from "../../design-system/shadows";
-import { spacing } from "../../design-system/spacing";
+import { minTapTarget, spacing } from "../../design-system/spacing";
 import { typography } from "../../design-system/typography";
 
 export const createStyles = (colors: ThemeColors) => StyleSheet.create({
@@ -23,34 +23,22 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
         alignItems: "flex-start",
     },
     avatarContainer: {
-        height: 48,
-        width: 48,
-        borderRadius: radius.full,
-        borderWidth: 2,
-        borderColor: colors.border,
         marginRight: spacing.sm,
-        overflow: "hidden",
-    },
-    avatar: {
-        width: "100%",
-        height: "100%",
     },
     nameBlock: {
         flex: 1,
     },
-    nameRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
     name: {
-        ...typography.bodyMedium,
+        ...typography.h3,
         color: colors.textPrimary,
-        flex: 1,
-        marginRight: spacing.xs,
     },
     saveButton: {
-        padding: spacing.xxs,
+        width: minTapTarget,
+        height: minTapTarget,
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: -spacing.xs,
+        marginRight: -spacing.xs,
     },
     title: {
         ...typography.label,
@@ -59,27 +47,24 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
     },
     badgeRow: {
         flexDirection: "row",
+        flexWrap: "wrap",
         alignItems: "center",
         marginTop: spacing.sm,
-        gap: spacing.sm,
+        gap: spacing.xs,
     },
     badge: {
-        backgroundColor: colors.overlay,
-        paddingHorizontal: spacing.xs,
-        paddingVertical: spacing.xxs,
-        borderRadius: radius.xs,
-    },
-    badgeText: {
-        ...typography.labelSmall,
-        color: colors.textSecondary,
-    },
-    experienceContainer: {
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.xxs,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.divider,
+        paddingHorizontal: spacing.xs,
+        paddingVertical: spacing.xxs,
+        borderRadius: radius.full,
     },
-    experienceText: {
-        ...typography.labelSmall,
+    badgeText: {
+        ...typography.label,
         color: colors.textSecondary,
     },
     tagline: {
@@ -99,17 +84,18 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
         color: colors.textPrimary,
     },
     rateSuffix: {
-        ...typography.labelSmall,
+        ...typography.label,
         color: colors.textSecondary,
     },
     button: {
         backgroundColor: colors.primary,
+        minHeight: minTapTarget,
+        justifyContent: "center",
         paddingHorizontal: spacing.md,
-        paddingVertical: spacing.xs,
-        borderRadius: radius.sm,
+        borderRadius: radius.md,
     },
     buttonText: {
-        ...typography.buttonSmall,
-        color: "#FFFFFF",
+        ...typography.button,
+        color: colors.onPrimary,
     },
 });

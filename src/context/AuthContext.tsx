@@ -263,7 +263,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         if (data.user.accountStatus === "suspended") {
           await recordFailedAttempt(rateLimitKey);
-          return { ok: false as const, message: "Your account is suspended by admin." };
+          return { ok: false as const, message: "Your account is paused right now. Please contact support and we will help you sort it out." };
         }
         
         // Clear rate limit on successful login

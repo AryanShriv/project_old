@@ -20,9 +20,9 @@ import Toast from "react-native-toast-message";
 import { useAuth } from "@/src/context/AuthContext";
 import { useExperts } from "@/src/context/ExpertsContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { ThemeColors } from "@/src/design-system/colors";
+import { ThemeColors, brand } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
-import { spacing } from "@/src/design-system/spacing";
+import { minTapTarget, spacing } from "@/src/design-system/spacing";
 import { apiRequest } from "@/src/services/apiClient";
 
 export default function ExpertProfileTabScreen() {
@@ -47,7 +47,6 @@ export default function ExpertProfileTabScreen() {
     yearsExperience: me?.yearsExperience ? parseInt(me.yearsExperience) : 0,
     skills: me?.skills?.join(", ") ?? "",
     experience: me?.experience ?? [],
-    portfolio: me?.portfolio ?? [],
   });
 
   // Track dynamic changes when 'me' object changes/loads
@@ -62,7 +61,6 @@ export default function ExpertProfileTabScreen() {
         yearsExperience: me.yearsExperience ? parseInt(me.yearsExperience) : 0,
         skills: me.skills?.join(", ") ?? "",
         experience: me.experience ?? [],
-        portfolio: me.portfolio ?? [],
       });
     }
   }, [me]);
@@ -89,11 +87,6 @@ export default function ExpertProfileTabScreen() {
           company: exp.company.trim(),
           description: exp.description.trim(),
         })),
-        portfolio: formData.portfolio.map((p) => ({
-          title: p.title.trim(),
-          description: p.description.trim(),
-          link: p.image.trim(),
-        })),
       };
 
       await apiRequest(`/experts/${personaId}`, {
@@ -102,7 +95,7 @@ export default function ExpertProfileTabScreen() {
         body: payload,
       });
 
-      // Refresh freelancers list to get updated data
+      // Refresh experts list to get updated data
       await refresh();
 
       Toast.show({
@@ -260,11 +253,11 @@ export default function ExpertProfileTabScreen() {
             />
 
             {/* Experience Sub-form */}
-            <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Work History</Text>
+            <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Career highlights</Text>
             {formData.experience.map((exp, index) => (
               <View key={exp.id || `exp-${index}`} style={styles.itemEditorCard}>
                 <View style={styles.itemEditorHeader}>
-                  <Text style={styles.itemEditorTitle}>Job #{index + 1}</Text>
+                  <Text style={styles.itemEditorTitle}>Highlight {index + 1}</Text>
                   <Pressable
                     onPress={() => {
                       const updated = [...formData.experience];
@@ -272,7 +265,7 @@ export default function ExpertProfileTabScreen() {
                       setFormData({ ...formData, experience: updated });
                     }}
                   >
-                    <Ionicons name="trash-outline" size={18} color="#FF4D4D" />
+                    <Ionicons name="trash-outline" size={20} color={colors.error} />
                   </Pressable>
                 </View>
                 
@@ -289,7 +282,7 @@ export default function ExpertProfileTabScreen() {
                 />
                 <TextInput
                   style={[styles.input, styles.smallInput]}
-                  placeholder="Role (e.g. Senior Frontend Engineer)"
+                  placeholder="Role (e.g. Chief Financial Officer)"
                   placeholderTextColor={colors.textMuted}
                   value={exp.role}
                   onChangeText={(text) => {
@@ -300,7 +293,7 @@ export default function ExpertProfileTabScreen() {
                 />
                 <TextInput
                   style={[styles.input, styles.smallInput]}
-                  placeholder="Company (e.g. Google)"
+                  placeholder="Organisation (e.g. Ontario Hydro)"
                   placeholderTextColor={colors.textMuted}
                   value={exp.company}
                   onChangeText={(text) => {
@@ -311,7 +304,7 @@ export default function ExpertProfileTabScreen() {
                 />
                 <TextInput
                   style={[styles.input, styles.smallTextarea]}
-                  placeholder="Job Description..."
+                  placeholder="What you achieved, in a sentence or two"
                   placeholderTextColor={colors.textMuted}
                   value={exp.description}
                   onChangeText={(text) => {
@@ -336,76 +329,7 @@ export default function ExpertProfileTabScreen() {
               }}
             >
               <Ionicons name="add" size={16} color={colors.primary} />
-              <Text style={styles.addItemBtnText}>Add Job Experience</Text>
-            </Pressable>
-
-            {/* Portfolio / Notable Work Sub-form */}
-            <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Notable Work / Portfolio</Text>
-            {formData.portfolio.map((p, index) => (
-              <View key={p.id || `portfolio-${index}`} style={styles.itemEditorCard}>
-                <View style={styles.itemEditorHeader}>
-                  <Text style={styles.itemEditorTitle}>Project #{index + 1}</Text>
-                  <Pressable
-                    onPress={() => {
-                      const updated = [...formData.portfolio];
-                      updated.splice(index, 1);
-                      setFormData({ ...formData, portfolio: updated });
-                    }}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#FF4D4D" />
-                  </Pressable>
-                </View>
-                
-                <TextInput
-                  style={[styles.input, styles.smallInput]}
-                  placeholder="Project Title"
-                  placeholderTextColor={colors.textMuted}
-                  value={p.title}
-                  onChangeText={(text) => {
-                    const updated = [...formData.portfolio];
-                    updated[index] = { ...p, title: text };
-                    setFormData({ ...formData, portfolio: updated });
-                  }}
-                />
-                <TextInput
-                  style={[styles.input, styles.smallTextarea]}
-                  placeholder="Description"
-                  placeholderTextColor={colors.textMuted}
-                  value={p.description}
-                  onChangeText={(text) => {
-                    const updated = [...formData.portfolio];
-                    updated[index] = { ...p, description: text };
-                    setFormData({ ...formData, portfolio: updated });
-                  }}
-                  multiline
-                />
-                <TextInput
-                  style={[styles.input, styles.smallInput]}
-                  placeholder="Image URL (or mock placeholder URL)"
-                  placeholderTextColor={colors.textMuted}
-                  value={p.image}
-                  onChangeText={(text) => {
-                    const updated = [...formData.portfolio];
-                    updated[index] = { ...p, image: text };
-                    setFormData({ ...formData, portfolio: updated });
-                  }}
-                />
-              </View>
-            ))}
-            <Pressable
-              style={styles.addItemBtn}
-              onPress={() => {
-                setFormData({
-                  ...formData,
-                  portfolio: [
-                    ...formData.portfolio,
-                    { id: `new-portfolio-${Date.now()}`, title: "", description: "", image: "" }
-                  ]
-                });
-              }}
-            >
-              <Ionicons name="add" size={16} color={colors.primary} />
-              <Text style={styles.addItemBtnText}>Add Portfolio Project</Text>
+              <Text style={styles.addItemBtnText}>Add a career highlight</Text>
             </Pressable>
 
             <View style={styles.actions}>
@@ -422,7 +346,7 @@ export default function ExpertProfileTabScreen() {
                 disabled={isSaving}
               >
                 {isSaving ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator color={brand.onPrimary} size="small" />
                 ) : (
                   <Text style={styles.btnSaveText}>Save Changes</Text>
                 )}
@@ -457,7 +381,7 @@ export default function ExpertProfileTabScreen() {
             style={styles.row}
             onPress={async () => {
               await logout();
-              router.replace("/(auth)/login?intent=client" as Href);
+              router.replace("/(auth)/login?intent=user" as Href);
             }}
           >
             <View style={styles.rowLeft}>
@@ -465,9 +389,9 @@ export default function ExpertProfileTabScreen() {
                 <Ionicons name="people" size={22} color={colors.primary} />
               </View>
               <View>
-                <Text style={styles.rowLabel}>Sign in to hire talent</Text>
+                <Text style={styles.rowLabel}>Sign in to find an expert</Text>
                 <Text style={styles.rowHint}>
-                  Logs you out here, then opens the client sign-in
+                  Logs you out here, then opens the user sign-in
                 </Text>
               </View>
             </View>
@@ -610,7 +534,8 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.border,
       borderRadius: radius.md,
       padding: spacing.sm,
-      fontSize: 14,
+      minHeight: minTapTarget,
+      fontSize: 16,
       color: colors.textPrimary,
       backgroundColor: colors.background,
     },
@@ -646,7 +571,7 @@ const createStyles = (colors: ThemeColors) =>
     btnSaveText: {
       fontSize: 14,
       fontWeight: "600",
-      color: "#fff",
+      color: brand.onPrimary,
     },
     btnDisabled: {
       opacity: 0.6,
@@ -727,17 +652,17 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textPrimary,
     },
     smallInput: {
-      paddingVertical: 6,
-      paddingHorizontal: spacing.xs,
-      fontSize: 13,
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      fontSize: 16,
       marginBottom: spacing.xs,
     },
     smallTextarea: {
-      height: 60,
+      height: 88,
       textAlignVertical: "top",
-      paddingVertical: 6,
-      paddingHorizontal: spacing.xs,
-      fontSize: 13,
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      fontSize: 16,
       marginBottom: spacing.xs,
     },
     addItemBtn: {

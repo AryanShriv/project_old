@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+// Legacy alias: this is the ExpertProfile model. See "Naming" in backend/README.md before renaming.
 const FreelancerProfile = require("../experts/expert.model");
 
 const assertFreelancerAccess = async (freelancerId, auth) => {

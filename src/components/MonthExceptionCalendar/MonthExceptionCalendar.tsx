@@ -231,7 +231,7 @@ const createStyles = (colors: ThemeColors) =>
     weekdayLabel: {
       flex: 1,
       textAlign: "center",
-      fontSize: 11,
+      fontSize: 13,
       fontWeight: "600",
       color: colors.textMuted,
     },
@@ -294,7 +294,7 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.border,
     },
     legendText: {
-      fontSize: 12,
+      fontSize: 13,
       color: colors.textMuted,
       marginRight: spacing.sm,
     },

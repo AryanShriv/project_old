@@ -118,7 +118,8 @@ We may remove violating content.
 You retain ownership of submitted content and grant platform usage license.
 
 12. Privacy and Data
-Handled under PIPEDA and applicable Ontario law.
+In Canada, personal information is handled under the Personal Information Protection and Electronic Documents Act (PIPEDA) and applicable Ontario law.
+In India, personal data is handled under the Digital Personal Data Protection Act, 2023 (DPDP Act).
 We collect account/profile/usage/device and communication data.
 No sale of personal data.
 Rights include access, correction, withdrawal (where applicable), and deletion requests.

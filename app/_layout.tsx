@@ -56,7 +56,7 @@ function RootContent() {
       <Stack.Screen
         name="booking/[id]"
         options={{
-          title: "Consultation Request",
+          title: "Request a Session",
           headerShadowVisible: false,
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.textPrimary,

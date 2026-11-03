@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { ThemeColors } from "@/src/design-system/colors";
+import { ThemeColors, brand } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { spacing } from "@/src/design-system/spacing";
 import type { AuthRoleIntent } from "@/src/types/auth";
@@ -122,7 +122,7 @@ export default function SignupScreen() {
           <Text style={styles.title}>Create account</Text>
           <Text style={styles.subtitle}>
             {intent === "user"
-              ? "Save profiles and send consultation requests."
+              ? "Save experts and request sessions."
               : "Apply to claim your expert profile. Admin approval is required before you can sign in."}
           </Text>
 
@@ -140,7 +140,7 @@ export default function SignupScreen() {
                   intent === "user" && styles.segLabelOn,
                 ]}
               >
-                Hiring
+                I need an expert
               </Text>
             </Pressable>
             <Pressable
@@ -156,7 +156,7 @@ export default function SignupScreen() {
                   intent === "expert" && styles.segLabelOn,
                 ]}
               >
-                Expert
+                {"I'm an expert"}
               </Text>
             </Pressable>
           </View>
@@ -278,7 +278,7 @@ export default function SignupScreen() {
             disabled={submitting || !canSubmit}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={brand.onPrimary} />
             ) : (
               <Text style={styles.primaryText}>Create account</Text>
             )}
@@ -315,7 +315,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   subtitle: {
     marginTop: spacing.sm,
-    fontSize: 15,
+    fontSize: 16,
     color: colors.textSecondary,
     lineHeight: 22,
     marginBottom: spacing.lg,
@@ -339,12 +339,12 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.primary,
   },
   segLabel: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     color: colors.textSecondary,
   },
   segLabelOn: {
-    color: "#fff",
+    color: brand.onPrimary,
   },
   label: {
     fontSize: 13,
@@ -414,7 +414,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.textPrimary,
   },
   chipTextOn: {
-    color: "#fff",
+    color: brand.onPrimary,
   },
   error: {
     color: "#b91c1c",
@@ -432,7 +432,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     opacity: 0.7,
   },
   primaryText: {
-    color: "#fff",
+    color: brand.onPrimary,
     fontSize: 16,
     fontWeight: "700",
   },
@@ -441,7 +441,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: "center",
   },
   link: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     color: colors.primary,
   },
@@ -484,7 +484,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.primary,
   },
   checkmark: {
-    color: "#fff",
+    color: brand.onPrimary,
     fontSize: 14,
     fontWeight: "700",
     lineHeight: 16,

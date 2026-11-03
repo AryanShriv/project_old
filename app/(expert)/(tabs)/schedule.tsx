@@ -17,7 +17,7 @@ import { MonthExceptionCalendar } from "@/src/components/MonthExceptionCalendar/
 import { WeeklyAvailabilityCalendar } from "@/src/components/WeeklyAvailabilityCalendar/WeeklyAvailabilityCalendar";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { ThemeColors } from "@/src/design-system/colors";
+import { ThemeColors, brand } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
@@ -185,10 +185,10 @@ export default function ExpertScheduleScreen() {
           disabled={saving}
         >
           {saving ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={brand.onPrimary} />
           ) : (
             <>
-              <Ionicons name="save-outline" size={18} color="#fff" />
+              <Ionicons name="save-outline" size={18} color={brand.onPrimary} />
               <Text style={styles.saveBtnText}>Save calendar</Text>
             </>
           )}
@@ -288,6 +288,6 @@ const createStyles = (colors: ThemeColors) =>
     },
     saveBtnText: {
       ...typography.button,
-      color: "#fff",
+      color: brand.onPrimary,
     },
   });

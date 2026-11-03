@@ -1,4 +1,4 @@
-import { ThemeColors } from "@/src/design-system/colors";
+import { ThemeColors, brand } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
@@ -96,7 +96,7 @@ export const createStyles = (colors: ThemeColors) =>
     },
     submitText: {
       ...typography.bodyMedium,
-      color: "#fff",
+      color: brand.onPrimary,
       fontWeight: "600",
     },
   });

@@ -104,7 +104,7 @@ export const typography = {
 
   labelSmall: {
     fontFamily: fontFamily.sansMedium,
-    fontSize: 12,
+    fontSize: 13,
     lineHeight: 16,
     letterSpacing: 0.2,
   } as TextStyle,
@@ -124,19 +124,19 @@ export const typography = {
     letterSpacing: 0.1,
   } as TextStyle,
 
-  // Caption - DM Sans (use sparingly, minimum 12px)
+  // Caption - DM Sans (metadata only, minimum 13px; body text and inputs are always >=16px)
   caption: {
     fontFamily: fontFamily.sansRegular,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 18,
     letterSpacing: 0.2,
   } as TextStyle,
 
   // Overline - DM Sans (for labels, kickers)
   overline: {
     fontFamily: fontFamily.sansSemiBold,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 18,
     letterSpacing: 1,
     textTransform: "uppercase" as const,
   } as TextStyle,

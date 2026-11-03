@@ -14,6 +14,12 @@ export const gold = {
   900: "#412402",
 };
 
+// Brand colours that are identical in light and dark mode. Safe to use in static StyleSheets.
+export const brand = {
+  primary: gold[400],   // #BA7517
+  onPrimary: "#FFFCF5", // Warm off-white for text/icons on primary - never pure white
+};
+
 // Neutral - Warm Gray Palette (primary UI colors)
 export const neutral = {
   50: "#FAFAF8",   // Warm off-white background
@@ -45,11 +51,13 @@ export const light = {
   // Backgrounds
   background: neutral[50],        // #FAFAF8 - Never pure white
   surface: neutral[100],          // #F5F5F2 - Cards, elevated surfaces
-  surfaceElevated: "#FFFFFF",     // Only for modals/overlays
+  surfaceElevated: "#FDFCF9",     // Only for modals/overlays - warm, never pure white
 
-  // Brand
-  primary: gold[400],             // #BA7517 - PRIMARY BRAND COLOR
-  primaryMuted: gold[100],        // #FAC775 - Light gold backgrounds
+  // Brand - one primary in both themes (PRD 3.2)
+  primary: brand.primary,         // #BA7517 - PRIMARY BRAND COLOR (buttons, active states)
+  onPrimary: brand.onPrimary,     // Text/icons on primary
+  primaryMuted: gold[50],         // #FAEEDA - Soft gold backgrounds (selected options, badges)
+  onPrimaryMuted: gold[800],      // #633806 - Text/icons on primaryMuted
 
   // Text
   textPrimary: neutral[700],      // #2E2E28 - Headings, high emphasis
@@ -60,8 +68,8 @@ export const light = {
   divider: neutral[200],          // #E8E8E3
   border: neutral[300],           // #D1D1C9
 
-  // Tab Bar
-  tabBarActive: "#BA7517",
+  // Tab Bar - white with a subtle top border so it never matches the screen
+  tabBarActive: gold[400],
   tabBarInactive: "#9E9B91",
   tabBarBackground: "#FFFFFF",
   tabBarBorder: "rgba(26, 25, 22, 0.10)",
@@ -80,28 +88,31 @@ export const light = {
   infoMuted: semantic.infoMuted,
 };
 
-// Dark Theme (Optional - for future)
-export const dark = {
-  background: "#1C1C18",
-  surface: "#2E2E28",
-  surfaceElevated: "#3A3A32",
+// Dark Theme
+export const dark: ThemeColors = {
+  // Screen background sits a step above the tab bar's warm black (#1A1916) so they never match
+  background: "#25241F",
+  surface: "#302E29",
+  surfaceElevated: "#3B3933",
 
-  primary: gold[100],             // #FAC775 - Lighter gold for dark mode
-  primaryMuted: "rgba(250, 199, 117, 0.15)",
+  primary: brand.primary,         // #BA7517 - same brand gold as light mode
+  onPrimary: brand.onPrimary,
+  primaryMuted: "rgba(186, 117, 23, 0.20)",
+  onPrimaryMuted: gold[100],      // #FAC775 - readable gold text on the soft background
 
-  textPrimary: "#FAFAF8",         // Light warm white for headings
+  textPrimary: "#F2F1ED",         // Warm off-white for headings
   textSecondary: "#D1D1C9",       // Light warm gray for body text
   textMuted: "#A8A89E",           // Medium warm gray for muted text
 
   divider: "rgba(232, 232, 227, 0.1)",
   border: "rgba(232, 232, 227, 0.15)",
 
-  tabBarActive: "#BA7517",        // Gold stays gold
-  tabBarInactive: "#5A5750",
+  tabBarActive: gold[400],        // Gold stays gold
+  tabBarInactive: "#8E8B82",      // Neutral warm grey, readable on the tab bar
   tabBarBackground: "#1A1916",
   tabBarBorder: "rgba(242, 241, 237, 0.10)",
 
-  overlay: "rgba(0, 0, 0, 0.7)",
+  overlay: "rgba(15, 15, 13, 0.7)",
 
   success: "#4CAF50",
   successMuted: "rgba(76, 175, 80, 0.15)",
@@ -113,5 +124,7 @@ export const dark = {
   infoMuted: "rgba(59, 130, 246, 0.15)",
 };
 
-export const colors = light;
 export type ThemeColors = typeof light;
+
+/** Static light palette. Prefer `useTheme().colors` in components so dark mode works. */
+export const colors = light;

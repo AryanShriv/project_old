@@ -17,6 +17,7 @@ import {
 import { useTheme } from "@/src/context/ThemeContext";
 import { reviewsApi } from "@/src/services/reviewsApi";
 import { createStyles } from "./styles";
+import { brand } from "@/src/design-system/colors";
 
 type Props = {
   visible: boolean;
@@ -139,7 +140,7 @@ export const ReviewModal = ({ visible, expertId, requestId, onClose, onSuccess }
               disabled={!isFormValid || isSubmitting}
             >
               {isSubmitting ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={brand.onPrimary} />
               ) : (
                 <Text style={styles.submitText}>Submit Review</Text>
               )}

@@ -122,7 +122,7 @@ const login = async (req, res) => {
   }
 
   if (user.accountStatus === "suspended") {
-    return sendError(res, "Account is suspended", 403);
+    return sendError(res, "Your account is paused right now. Please contact support and we will help you sort it out.", 403);
   }
 
   const accessToken = signAccessToken(user);
@@ -153,7 +153,7 @@ const refresh = async (req, res) => {
     }
 
     if (user.accountStatus === "suspended") {
-      return sendError(res, "Account is suspended", 403);
+      return sendError(res, "Your account is paused right now. Please contact support and we will help you sort it out.", 403);
     }
 
     const accessToken = signAccessToken(user);
@@ -194,7 +194,7 @@ const me = async (req, res) => {
   }
 
   if (user.accountStatus === "suspended") {
-    return sendError(res, "Account is suspended", 403);
+    return sendError(res, "Your account is paused right now. Please contact support and we will help you sort it out.", 403);
   }
 
   const authUser = await buildAuthUserPayload(user);

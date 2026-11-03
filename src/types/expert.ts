@@ -5,6 +5,8 @@ export type Expert = {
     yearsExperience: string;
     tagline: string;
     rate: string;
+    /** Formatted price per session, e.g. "CA$120" or "₹2,500"; empty if not set */
+    sessionPrice: string;
     avatar: string;
     skills: string[];
 
@@ -30,6 +32,8 @@ export type Expert = {
     reviewCount?: number;
 
     approvalStatus?: "pending" | "approved" | "rejected";
+    /** True only after admin approval */
+    verified: boolean;
     rejectionReason?: string;
     approvedAt?: string;
     adminNotes?: string;

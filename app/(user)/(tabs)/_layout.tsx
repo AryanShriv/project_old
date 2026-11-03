@@ -28,7 +28,7 @@ export default function UserTabsLayout() {
           height: (Platform.OS === "ios" ? 80 : 64) + Math.max(insets.bottom, 0),
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: "600",
         },
       }}
@@ -38,7 +38,7 @@ export default function UserTabsLayout() {
         options={{
           title: "Discover",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass" size={size} color={color} />
+            <Ionicons name="compass" size={size} color={color as string} />
           ),
         }}
       />
@@ -48,7 +48,7 @@ export default function UserTabsLayout() {
         options={{
           title: "Saved",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bookmark" size={size} color={color} />
+            <Ionicons name="bookmark" size={size} color={color as string} />
           ),
         }}
       />
@@ -58,7 +58,7 @@ export default function UserTabsLayout() {
         options={{
           title: "Requests",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text" size={size} color={color} />
+            <Ionicons name="document-text" size={size} color={color as string} />
           ),
         }}
       />
@@ -68,7 +68,7 @@ export default function UserTabsLayout() {
         options={{
           title: "Messages",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
+            <Ionicons name="chatbubbles" size={size} color={color as string} />
           ),
           tabBarBadge: totalUnreadCount > 0 ? totalUnreadCount : undefined,
         }}
@@ -79,7 +79,7 @@ export default function UserTabsLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-circle" size={size} color={color} />
+            <Ionicons name="person-circle" size={size} color={color as string} />
           ),
         }}
       />

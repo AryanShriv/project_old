@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/src/components/EmptyState/EmptyState";
 import { useAuth } from "@/src/context/AuthContext";
-import { colors } from "@/src/design-system/colors";
+import { colors, brand } from "@/src/design-system/colors";
 import { spacing } from "@/src/design-system/spacing";
 
 export default function AdminApplicationsScreen() {
@@ -106,5 +106,5 @@ const styles = StyleSheet.create({
   reject: { borderWidth: 1, borderColor: colors.border, backgroundColor: "#fff" },
   approve: { backgroundColor: colors.primary },
   rejectText: { color: colors.textSecondary, fontWeight: "600" },
-  approveText: { color: "#fff", fontWeight: "600" },
+  approveText: { color: brand.onPrimary, fontWeight: "600" },
 });
