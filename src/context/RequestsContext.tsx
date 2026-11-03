@@ -77,6 +77,7 @@ export const RequestsProvider = ({
           auth: true,
           body: {
             expertId: request.expertId,
+            projectTitle: request.projectTitle,
             userMessage: request.userMessage || request.projectTitle,
             engagementType: request.engagementType,
             timingPreference: request.timingPreference,

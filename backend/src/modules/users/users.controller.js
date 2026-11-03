@@ -1,7 +1,7 @@
 const { z } = require("zod");
 const { sendSuccess, sendError } = require("../../utils/http");
 const User = require("./user.model");
-const { toAuthUser } = require("../auth/auth.utils");
+const { buildAuthUserPayload } = require("../auth/auth.utils");
 
 const updateProfileSchema = z
   .object({
@@ -25,7 +25,7 @@ const getMe = async (req, res) => {
     return sendError(res, "User not found", 404);
   }
 
-  return sendSuccess(res, toAuthUser(user), "Current user");
+  return sendSuccess(res, await buildAuthUserPayload(user), "Current user");
 };
 
 const updateMe = async (req, res) => {
@@ -48,7 +48,7 @@ const updateMe = async (req, res) => {
     return sendError(res, "User not found", 404);
   }
 
-  return sendSuccess(res, toAuthUser(user), "Profile updated");
+  return sendSuccess(res, await buildAuthUserPayload(user), "Profile updated");
 };
 
 module.exports = { getMe, updateMe };

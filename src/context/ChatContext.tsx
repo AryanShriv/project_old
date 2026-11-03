@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { io, Socket } from "socket.io-client";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ACCESS_TOKEN_KEY } from "../services/apiClient";
+import { ACCESS_TOKEN_KEY, refreshAccessToken } from "../services/apiClient";
 import { getConversations, getMessages, markAsRead as markAsReadApi } from "../services/chatApi";
 import { Conversation, Message } from "../types/chat";
 import { useAuth } from "./AuthContext";
@@ -65,13 +65,25 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
       if (!token) return;
 
+      let authRetries = 0;
       newSocket = io(API_BASE, {
-        auth: { token },
+        // Read the token on every (re)connect so a refreshed access token is picked up
+        auth: async (cb) => cb({ token: await AsyncStorage.getItem(ACCESS_TOKEN_KEY) }),
         transports: ["websocket"],
       });
 
       newSocket.on("connect", () => {
+        authRetries = 0;
         fetchConversations();
+      });
+
+      // The server rejected the handshake (usually an expired access token); the client
+      // does not retry these on its own, so refresh the token and reconnect.
+      newSocket.on("connect_error", async () => {
+        if (newSocket.active || authRetries >= 1) return;
+        authRetries += 1;
+        const nextToken = await refreshAccessToken();
+        if (nextToken) newSocket.connect();
       });
 
       newSocket.on("chat:receive", (message: Message) => {

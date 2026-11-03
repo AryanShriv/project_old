@@ -4,6 +4,9 @@ const { sendSuccess, sendError } = require("../../utils/http");
 const ExpertProfile = require("./expert.model");
 const User = require("../users/user.model");
 
+// User input is matched literally, so "C++" searches for "C++" instead of being parsed as a pattern
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const listSchema = z.object({
   q: z.string().trim().optional(),
   skill: z.string().trim().optional(),
@@ -59,10 +62,10 @@ const listExperts = async (req, res) => {
     filter.$text = { $search: q };
   }
   if (skill) {
-    filter.skills = { $elemMatch: { $regex: new RegExp(skill, "i") } };
+    filter.skills = { $elemMatch: { $regex: new RegExp(escapeRegex(skill), "i") } };
   }
   if (category) {
-    filter.categories = { $elemMatch: { $regex: new RegExp(category, "i") } };
+    filter.categories = { $elemMatch: { $regex: new RegExp(escapeRegex(category), "i") } };
   }
   if (minRate !== undefined || maxRate !== undefined) {
     filter.hourlyRate = {};

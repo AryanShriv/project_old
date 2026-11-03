@@ -16,7 +16,7 @@ const createSchema = z.object({
 
 const listSchema = z.object({
   role: z.enum(["user", "expert"]).optional(),
-  status: z.enum(["pending", "accepted", "rejected", "cancelled", "completed"]).optional(),
+  status: z.enum(["pending", "accepted", "rejected", "cancelled", "completed", "expired"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
@@ -24,6 +24,13 @@ const listSchema = z.object({
 const statusUpdateSchema = z.object({
   status: z.enum(["accepted", "rejected", "cancelled", "completed"]),
 });
+
+// Allowed status changes per role: current status -> statuses it may move to
+const ALLOWED_TRANSITIONS = {
+  user: { pending: ["cancelled"] },
+  expert: { pending: ["accepted", "rejected"], accepted: ["completed"] },
+  admin: { pending: ["accepted", "rejected", "cancelled"], accepted: ["completed", "cancelled"] },
+};
 
 const createRequest = async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
@@ -144,71 +151,64 @@ const updateRequestStatus = async (req, res) => {
     if (!profile || profile._id.toString() !== requestDoc.expertId.toString()) {
       return sendError(res, "Forbidden", 403);
     }
-    if (!["accepted", "rejected", "completed"].includes(parsed.data.status)) {
-      return sendError(res, "Expert can only set accepted, rejected, or completed", 400);
-    }
   }
 
-  if (req.auth.role === "user") {
-    if (requestDoc.userId.toString() !== req.auth.sub) {
-      return sendError(res, "Forbidden", 403);
-    }
-    if (parsed.data.status !== "cancelled") {
-      return sendError(res, "User can only cancel requests", 400);
-    }
-    if (requestDoc.status !== "pending") {
-      return sendError(res, "Only pending requests can be cancelled", 400);
-    }
-    requestDoc.status = "cancelled";
-    await requestDoc.save();
-    return sendSuccess(res, requestDoc, "Request status updated");
+  if (req.auth.role === "user" && requestDoc.userId.toString() !== req.auth.sub) {
+    return sendError(res, "Forbidden", 403);
   }
 
-  if (req.auth.role === "admin" || req.auth.role === "expert") {
-    if (requestDoc.status === "rejected" && parsed.data.status === "accepted") {
-      return sendError(res, "Cannot accept an already rejected request", 400);
-    }
-    const previousStatus = requestDoc.status;
-    requestDoc.status = parsed.data.status;
+  if (requestDoc.status === "pending" && requestDoc.expiresAt && requestDoc.expiresAt < new Date()) {
+    requestDoc.status = "expired";
     await requestDoc.save();
+    return sendError(res, "Request has expired", 400);
+  }
 
-    if (previousStatus !== "accepted" && parsed.data.status === "accepted") {
-      try {
-        const Conversation = require("../chat/conversation.model");
-        const expertProfile = await ExpertProfile.findById(requestDoc.expertId).select("userId");
-        if (expertProfile) {
-          const userId = requestDoc.userId;
-          const expertUserId = expertProfile.userId;
+  const nextStatus = parsed.data.status;
+  const allowed = ALLOWED_TRANSITIONS[req.auth.role]?.[requestDoc.status] || [];
+  if (!allowed.includes(nextStatus)) {
+    return sendError(res, `Cannot change a ${requestDoc.status} request to ${nextStatus}`, 400);
+  }
 
-          let conversation = await Conversation.findOne({ request: requestDoc._id });
-          if (!conversation) {
-            conversation = await Conversation.create({
-              participants: [userId, expertUserId],
-              request: requestDoc._id,
-            });
-            
-            try {
-              const { getIo } = require("../../config/socketServer");
-              const io = getIo();
-              const populated = await Conversation.findById(conversation._id)
-                .populate("participants", "profile.fullName email profile.avatarUrl role")
-                .lean();
-              io.to(`user:${userId.toString()}`).emit("chat:new_conversation", populated);
-              io.to(`user:${expertUserId.toString()}`).emit("chat:new_conversation", populated);
-            } catch (socketErr) {
-              console.error("Socket error during conversation creation", socketErr);
-            }
+  requestDoc.status = nextStatus;
+  if (nextStatus === "accepted" || nextStatus === "rejected") {
+    requestDoc.respondedAt = new Date();
+  }
+  await requestDoc.save();
+
+  if (nextStatus === "accepted") {
+    try {
+      const Conversation = require("../chat/conversation.model");
+      const expertProfile = await ExpertProfile.findById(requestDoc.expertId).select("userId");
+      if (expertProfile) {
+        const userId = requestDoc.userId;
+        const expertUserId = expertProfile.userId;
+
+        let conversation = await Conversation.findOne({ request: requestDoc._id });
+        if (!conversation) {
+          conversation = await Conversation.create({
+            participants: [userId, expertUserId],
+            request: requestDoc._id,
+          });
+
+          try {
+            const { getIo } = require("../../config/socketServer");
+            const io = getIo();
+            const populated = await Conversation.findById(conversation._id)
+              .populate("participants", "profile.fullName email profile.avatarUrl role")
+              .lean();
+            io.to(`user:${userId.toString()}`).emit("chat:new_conversation", populated);
+            io.to(`user:${expertUserId.toString()}`).emit("chat:new_conversation", populated);
+          } catch (socketErr) {
+            console.error("Socket error during conversation creation", socketErr);
           }
         }
-      } catch (err) {
-        console.error("Failed to auto-create conversation on accept:", err);
       }
+    } catch (err) {
+      console.error("Failed to auto-create conversation on accept:", err);
     }
-
-    return sendSuccess(res, requestDoc, "Request status updated");
   }
 
-  return sendError(res, "Forbidden", 403);
+  return sendSuccess(res, requestDoc, "Request status updated");
 };
 
 module.exports = { createRequest, listRequests, updateRequestStatus };

@@ -96,7 +96,7 @@ export default function ExpertProfileTabScreen() {
         })),
       };
 
-      await apiRequest(`/freelancers/${personaId}`, {
+      await apiRequest(`/experts/${personaId}`, {
         method: "PATCH",
         auth: true,
         body: payload,

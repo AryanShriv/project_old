@@ -63,8 +63,10 @@ type BackendAuthUser = {
   id: string;
   email: string;
   role: "user" | "expert" | "admin";
-  accountStatus: string;
+  accountStatus: "active" | "pending_review" | "suspended";
   managedExpertId?: string;
+  approvalStatus?: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
   profile?: {
     fullName?: string;
     bio?: string;
@@ -117,6 +119,18 @@ type BackendAudit = {
   entityId: string;
   metadata?: { decision?: string; status?: string; note?: string; actorEmail?: string };
 };
+
+const toSessionUser = (data: BackendAuthUser): AuthUser => ({
+  id: data.id,
+  email: data.email,
+  role: data.role,
+  accountStatus: data.accountStatus,
+  name: data.profile?.fullName || data.email.split("@")[0],
+  managedExpertId: data.managedExpertId,
+  approvalStatus: data.approvalStatus,
+  rejectionReason: data.rejectionReason,
+  profile: data.profile,
+});
 
 const toAuditAction = (item: BackendAudit): AuditLogEntry["action"] => {
   if (item.action === "application_reviewed") {
@@ -188,14 +202,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const rawSession = await AsyncStorage.getItem(SESSION_KEY);
         await loadExpertStatuses();
         if (rawSession) {
-          const parsed = JSON.parse(rawSession) as AuthUser;
-          // Validate token by hitting a protected endpoint
+          // Validate token by hitting a protected endpoint, and take the fresh user from it
           try {
             console.log("[Auth] Validating session token on app startup...");
-            const res = await apiRequest<{ user: any }>('/auth/me', { auth: true });
+            const res = await apiRequest<{ user: BackendAuthUser }>('/auth/me', { auth: true });
             console.log("[Auth] Session validated successfully:", res.user?.email);
-            setUser(parsed);
-            if (parsed.role === "admin") {
+            const freshUser = toSessionUser(res.user);
+            setUser(freshUser);
+            await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(freshUser));
+            if (freshUser.role === "admin") {
               await loadAdminData();
             }
           } catch (err) {
@@ -255,14 +270,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await clearRateLimit(rateLimitKey);
         
         await persistTokens(data.accessToken, data.refreshToken);
-        const nextUser: AuthUser = {
-          id: data.user.id,
-          email: data.user.email,
-          role: data.user.role,
-          name: data.user.profile?.fullName || data.user.email.split("@")[0],
-          managedExpertId: data.user.managedExpertId,
-          profile: data.user.profile,
-        };
+        const nextUser = toSessionUser(data.user);
         await persistSession(nextUser);
         if (nextUser.role === "admin") {
           await loadAdminData();
@@ -339,14 +347,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           };
         }
         await persistTokens(data.accessToken, data.refreshToken);
-        await persistSession({
-          id: data.user.id,
-          email: data.user.email,
-          role: data.user.role,
-          name: data.user.profile?.fullName || trimmedName,
-          managedExpertId: data.user.managedExpertId,
-          profile: data.user.profile,
-        });
+        await persistSession(toSessionUser(data.user));
         // Register device token for push notifications (non-blocking).
         registerPushToken();
         return { ok: true as const };
@@ -384,15 +385,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const refreshUser = useCallback(async () => {
     try {
       const data = await apiRequest<BackendAuthUser>("/users/me", { auth: true });
-      const nextUser: AuthUser = {
-        id: data.id,
-        email: data.email,
-        role: data.role,
-        name: data.profile?.fullName || data.email.split("@")[0],
-        managedExpertId: data.managedExpertId,
-        profile: data.profile,
-      };
-      await persistSession(nextUser);
+      await persistSession(toSessionUser(data));
     } catch (err) {
       console.warn("[Auth] refreshUser failed:", err);
     }

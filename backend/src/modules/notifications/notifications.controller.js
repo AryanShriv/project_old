@@ -16,7 +16,7 @@ const registerDeviceToken = async (req, res) => {
   const trimmedToken = token.trim();
 
   // $addToSet is atomic and prevents duplicates.
-  await User.findByIdAndUpdate(req.user._id, {
+  await User.findByIdAndUpdate(req.auth.sub, {
     $addToSet: { pushTokens: trimmedToken },
   });
 
@@ -34,7 +34,7 @@ const removeDeviceToken = async (req, res) => {
     return sendError(res, "token is required", 400);
   }
 
-  await User.findByIdAndUpdate(req.user._id, {
+  await User.findByIdAndUpdate(req.auth.sub, {
     $pull: { pushTokens: token.trim() },
   });
 
@@ -47,7 +47,7 @@ const removeDeviceToken = async (req, res) => {
  * verify registration. Replace with real notification history when ready.
  */
 const listNotifications = async (req, res) => {
-  const user = await User.findById(req.user._id).select("pushTokens").lean();
+  const user = await User.findById(req.auth.sub).select("pushTokens").lean();
   return sendSuccess(res, { items: user?.pushTokens ?? [] });
 };
 

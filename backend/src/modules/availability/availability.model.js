@@ -18,7 +18,7 @@ const availabilitySchema = new mongoose.Schema(
   {
     freelancerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "FreelancerProfile",
+      ref: "ExpertProfile",
       required: true,
       unique: true,
       index: true,

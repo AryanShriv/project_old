@@ -38,7 +38,7 @@ export default function AdminApplicationsScreen() {
               <Text style={styles.name}>{item.name}</Text>
               <Text style={styles.email}>{item.email}</Text>
               <Text style={styles.meta}>
-                Profile id: {item.expertProfileId}
+                Profile id: {item.managedExpertId}
               </Text>
               <Text style={styles.meta}>
                 Submitted: {new Date(item.createdAt).toLocaleDateString()}

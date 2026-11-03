@@ -4,7 +4,7 @@ const availabilityExceptionSchema = new mongoose.Schema(
   {
     freelancerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "FreelancerProfile",
+      ref: "ExpertProfile",
       required: true,
       index: true,
     },

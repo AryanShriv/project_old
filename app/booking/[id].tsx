@@ -57,7 +57,7 @@ export default function RequestSessionScreen() {
       await addRequest({
         id: '', // Will be assigned by backend
         expertId: expert.id,
-        userMessage: `${headline.trim()}\n\n${description.trim()}`,
+        userMessage: description.trim(),
         engagementType: sessionType as 'remote' | 'onsite' | 'ongoing',
         timingPreference: timing as 'asap' | 'week' | 'month' | 'flexible',
         projectTitle: headline.trim(),

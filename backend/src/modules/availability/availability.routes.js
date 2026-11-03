@@ -9,17 +9,17 @@ router.get("/:freelancerId/exceptions", requireAuth, exceptionsController.listEx
 router.put(
   "/:freelancerId/exceptions/:date",
   requireAuth,
-  requireRole("freelancer", "admin"),
+  requireRole("expert", "admin"),
   exceptionsController.upsertException
 );
 router.delete(
   "/:freelancerId/exceptions/:date",
   requireAuth,
-  requireRole("freelancer", "admin"),
+  requireRole("expert", "admin"),
   exceptionsController.deleteException
 );
 
 router.get("/:freelancerId", requireAuth, controller.getAvailability);
-router.put("/:freelancerId", requireAuth, requireRole("freelancer", "admin"), controller.upsertAvailability);
+router.put("/:freelancerId", requireAuth, requireRole("expert", "admin"), controller.upsertAvailability);
 
 module.exports = router;

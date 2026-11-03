@@ -44,7 +44,21 @@ export async function clearTokens() {
   ]);
 }
 
-async function refreshAccessToken() {
+// Refresh tokens rotate on every use, so concurrent callers must share one refresh call.
+let refreshInFlight: Promise<string | null> | null = null;
+
+export function refreshAccessToken() {
+  if (!refreshInFlight) {
+    refreshInFlight = doRefreshAccessToken()
+      .catch(() => null)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
+
+async function doRefreshAccessToken() {
   const { refreshToken } = await readTokens();
   if (!refreshToken) return null;
 

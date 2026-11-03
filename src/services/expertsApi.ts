@@ -36,6 +36,6 @@ export async function fetchExpertById(id: string): Promise<Expert> {
     portfolio?: Array<{ title?: string; description?: string; link?: string }>;
     reviewCount?: number;
     recommendedCount?: number;
-  }>(`/experts/${id}`);
+  }>(`/experts/${id}`, { auth: true }); // lets admins and the owner see non-active profiles
   return mapApiExpertToUi(response);
 }

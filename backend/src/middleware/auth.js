@@ -23,6 +23,21 @@ const requireAuth = (req, res, next) => {
   }
 };
 
+// Attaches req.auth when a valid token is sent, but lets anonymous requests through
+const optionalAuth = (req, res, next) => {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+
+  if (token && env.jwtAccessSecret) {
+    try {
+      req.auth = jwt.verify(token, env.jwtAccessSecret);
+    } catch (error) {
+      // Invalid or expired token: treat as anonymous
+    }
+  }
+  return next();
+};
+
 const requireRole = (...roles) => (req, res, next) => {
   const userRole = req.auth?.role;
   if (!userRole || !roles.includes(userRole)) {
@@ -31,4 +46,4 @@ const requireRole = (...roles) => (req, res, next) => {
   return next();
 };
 
-module.exports = { requireAuth, requireRole };
+module.exports = { requireAuth, optionalAuth, requireRole };

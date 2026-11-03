@@ -22,6 +22,20 @@ const statusSchema = z.object({
   note: z.string().trim().max(1000).optional().default(""),
 });
 
+// Only copy submission fields the applicant actually filled in, so empty defaults
+// never overwrite data already on the expert profile
+const filledSubmissionFields = (submission) => {
+  const plain = submission?.toObject ? submission.toObject() : submission || {};
+  return Object.fromEntries(
+    Object.entries(plain).filter(([, value]) => {
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === "string") return value.trim() !== "";
+      if (typeof value === "number") return value > 0;
+      return false;
+    })
+  );
+};
+
 const listApplications = async (req, res) => {
   const parsed = listApplicationsSchema.safeParse(req.query);
   if (!parsed.success) {
@@ -90,7 +104,7 @@ const reviewApplication = async (req, res) => {
         profileStatus,
         approvalStatus: decision,
         ...(decision === "approved"
-          ? { approvedAt: new Date(), ...application.submission }
+          ? { approvedAt: new Date(), rejectionReason: "", ...filledSubmissionFields(application.submission) }
           : { rejectionReason: parsed.data.note || "Application not approved." }),
       },
     }),

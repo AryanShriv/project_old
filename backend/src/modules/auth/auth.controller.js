@@ -6,7 +6,7 @@ const FreelancerProfile = require("../experts/expert.model");
 const Application = require("../applications/application.model");
 const env = require("../../config/env");
 const { sendSuccess, sendError } = require("../../utils/http");
-const { signAccessToken, signRefreshToken, toAuthUser } = require("./auth.utils");
+const { signAccessToken, signRefreshToken, buildAuthUserPayload } = require("./auth.utils");
 
 const registerSchema = z
   .object({
@@ -38,18 +38,6 @@ const loginSchema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(1),
 });
-
-const buildAuthUserPayload = async (user) => {
-  const base = toAuthUser(user);
-  if (user.role !== "expert") {
-    return base;
-  }
-  const profile = await FreelancerProfile.findOne({ userId: user._id }).select("_id");
-  return {
-    ...base,
-    managedExpertId: profile?._id?.toString(),
-  };
-};
 
 const register = async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);

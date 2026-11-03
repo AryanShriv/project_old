@@ -3,8 +3,12 @@ export type AuthUser = {
   email: string;
   name: string;
   role: "user" | "expert" | "admin";
+  accountStatus?: "active" | "pending_review" | "suspended";
   /** Linked public expert profile id (expert role only) */
   managedExpertId?: string;
+  /** Admin review outcome of the expert application (expert role only) */
+  approvalStatus?: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
   /** Extended profile fields */
   profile?: {
     fullName?: string;

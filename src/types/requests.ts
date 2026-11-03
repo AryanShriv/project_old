@@ -7,7 +7,7 @@ export type Request = {
     aiSummary?: string;
     engagementType?: "remote" | "onsite" | "both" | "ongoing";
     timingPreference?: "asap" | "week" | "month" | "flexible";
-    status: "pending" | "accepted" | "rejected" | "cancelled" | "completed";
+    status: "pending" | "accepted" | "rejected" | "cancelled" | "completed" | "expired";
     expiresAt?: string;
     createdAt?: string;
     updatedAt?: string;

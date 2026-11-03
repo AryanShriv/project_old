@@ -115,7 +115,7 @@ export default function UserRequestsScreen() {
                   </Text>
                 </View>
               </View>
-              <Text style={styles.projectTitle} numberOfLines={2}>{item.userMessage || item.projectTitle}</Text>
+              <Text style={styles.projectTitle} numberOfLines={2}>{item.projectTitle || item.userMessage}</Text>
               {(item.engagementType || item.timingPreference) && (
                 <Text style={[styles.meta, { marginBottom: 4 }]}>
                   {[
