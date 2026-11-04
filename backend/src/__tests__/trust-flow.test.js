@@ -129,6 +129,33 @@ describe("Terms acceptance (PRD 4.5)", () => {
     });
     expect(missing.status).toBe(400);
   });
+
+  test("the insurance acknowledgement is only required and stored for on-site experts", async () => {
+    const remote = await api("POST", "/auth/register", {
+      body: { ...expertBody(), acknowledgedInsurance: undefined },
+    });
+    expect(remote.status).toBe(201);
+    const remoteSaved = await User.findById(remote.body.data.user.id).lean();
+    expect(remoteSaved.legalAcceptance.insuranceAcknowledgedAt).toBeNull();
+
+    const onsiteBody = expertBody({ domain: "Tiling", engagementTypes: ["onsite"], insuranceDeclared: true });
+    const onsiteMissing = await api("POST", "/auth/register", {
+      body: { ...onsiteBody, acknowledgedInsurance: undefined },
+    });
+    expect(onsiteMissing.status).toBe(400);
+
+    const onsite = await api("POST", "/auth/register", { body: onsiteBody });
+    expect(onsite.status).toBe(201);
+    const onsiteSaved = await User.findById(onsite.body.data.user.id).lean();
+    expect(onsiteSaved.legalAcceptance.insuranceAcknowledgedAt).toBeInstanceOf(Date);
+  });
+
+  test("an email already in use cannot sign up again, even for the other role", async () => {
+    const { user } = await registerUser();
+    const res = await api("POST", "/auth/register", { body: { ...expertBody(), email: user.email } });
+    expect(res.status).toBe(409);
+    expect(res.body.message).toMatch(/sign in/i);
+  });
 });
 
 describe("Credentials and approval (PRD 4.4)", () => {

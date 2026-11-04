@@ -67,7 +67,6 @@ const registerSchema = z
 
     mustAccept(data, ctx, "acceptedExpertCompliance", "You must confirm your professional credentials declaration.");
     mustAccept(data, ctx, "acknowledgedIndependentContractor", "Please confirm you are an independent contractor.");
-    mustAccept(data, ctx, "acknowledgedInsurance", "Please acknowledge the insurance terms for on-site work.");
 
     const profile = data.expertProfile;
     if (!profile) {
@@ -75,6 +74,10 @@ const registerSchema = z
       return;
     }
     const onsite = profile.engagementTypes.includes("onsite");
+    // The insurance acknowledgement only applies to experts who offer on-site sessions
+    if (onsite) {
+      mustAccept(data, ctx, "acknowledgedInsurance", "Please acknowledge the insurance terms for on-site work.");
+    }
     if (onsite && profile.country !== "Canada") {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -120,7 +123,12 @@ const register = async (req, res) => {
   const { email, password, fullName, role, termsVersion } = parsed.data;
   const existing = await User.findOne({ email });
   if (existing) {
-    return sendError(res, "Email already registered", 409);
+    // One email is one account and one role (user or expert)
+    return sendError(
+      res,
+      "This email already has a G(Old) account. Please sign in instead. Each email can be used for one account, either to find experts or to offer your experience.",
+      409
+    );
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
@@ -137,7 +145,8 @@ const register = async (req, res) => {
       termsAcceptedAt: acceptedAt,
       expertComplianceAcceptedAt: role === "expert" ? acceptedAt : null,
       independentContractorAcceptedAt: role === "expert" ? acceptedAt : null,
-      insuranceAcknowledgedAt: role === "expert" ? acceptedAt : null,
+      insuranceAcknowledgedAt:
+        role === "expert" && parsed.data.expertProfile?.engagementTypes.includes("onsite") ? acceptedAt : null,
       platformOnlyAcknowledgedAt: role === "user" ? acceptedAt : null,
       onsiteSafetyAcknowledgedAt: role === "user" ? acceptedAt : null,
     },
