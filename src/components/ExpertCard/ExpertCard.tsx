@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { Href } from "expo-router";
 import { router } from "expo-router";
 import React, { useMemo } from "react";
 import {
@@ -9,12 +8,14 @@ import {
     View,
     ViewStyle,
 } from "react-native";
+import Toast from "react-native-toast-message";
 
 import { Avatar } from "@/src/components/Avatar/Avatar";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useSaved } from "../../context/SavedContext";
 
+import { signInToContinue } from "../../utils/reentry";
 import { createStyles } from "./styles";
 
 type ExpertCardProps = {
@@ -28,6 +29,8 @@ type ExpertCardProps = {
   recommendedCount?: number;
   reviewCount?: number;
   verified?: boolean;
+  /** PRD 5.4 */
+  founderBadge?: boolean;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 };
@@ -43,6 +46,7 @@ export const ExpertCard: React.FC<ExpertCardProps> = ({
   recommendedCount = 0,
   reviewCount = 0,
   verified = false,
+  founderBadge = false,
   onPress,
   style,
 }) => {
@@ -54,17 +58,19 @@ export const ExpertCard: React.FC<ExpertCardProps> = ({
 
   const onSave = () => {
     if (!user || user.role !== "user") {
-      // Come back to this expert's profile after signing in (PRD 5.3)
-      router.push({
-        pathname: "/(auth)/login",
-        params: {
-          intent: "user",
-          returnTo: `/expert/${id}`,
-        },
-      } as Href);
+      // Signs in, then lands on this expert's profile with them saved (PRD 5.3)
+      signInToContinue(id, "save", "list");
       return;
     }
-    toggleSave(id);
+    toggleSave(id)
+      .then(() =>
+        Toast.show({
+          type: "success",
+          text1: saved ? "Removed from Saved" : "Saved",
+          text2: saved ? undefined : "Find them any time in your Saved tab.",
+        })
+      )
+      .catch((error: Error) => Toast.show({ type: "error", text1: "Couldn't update Saved", text2: error.message }));
   };
 
   return (
@@ -106,6 +112,12 @@ export const ExpertCard: React.FC<ExpertCardProps> = ({
       </View>
 
       <View style={styles.badgeRow}>
+        {founderBadge && (
+          <View style={styles.badge}>
+            <Ionicons name="ribbon" size={14} color={colors.primary} />
+            <Text style={styles.badgeText}>Founding Expert</Text>
+          </View>
+        )}
         {verified && (
           <View style={styles.badge}>
             <Ionicons name="shield-checkmark" size={14} color={colors.primary} />

@@ -11,6 +11,7 @@ import { ApiError, apiRequest, clearTokens, persistTokens } from "../services/ap
 import { registerPushToken, unregisterPushToken } from "../services/notificationsService";
 import { checkRateLimit, clearRateLimit, recordFailedAttempt } from "../services/rateLimiter";
 import type {
+    AdminExpert,
     AuditLogEntry,
     AuthRoleIntent,
     AuthUser,
@@ -48,6 +49,12 @@ type AuthContextType = {
     expertId: string,
     status: ExpertAccountStatus,
   ) => Promise<void>;
+  /** Admin only: every approved expert, including suspended ones */
+  adminExperts: AdminExpert[];
+  /** Admin only: reload applications, audit log and experts */
+  refreshAdminData: () => Promise<void>;
+  /** PRD 5.4: mark or unmark an approved expert as a Founding Expert */
+  setFounderBadge: (expertId: string, founderBadge: boolean) => Promise<void>;
   updateProfile: (fields: Record<string, string>) => Promise<void>;
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
@@ -122,13 +129,24 @@ type BackendApplication = {
   requirements?: VerificationChecklist | null;
 };
 
+type BackendAdminExpert = {
+  _id: string;
+  fullName?: string;
+  headline?: string;
+  domain?: string;
+  city?: string;
+  profileStatus?: string;
+  founderBadge?: boolean;
+  reviewCount?: number;
+};
+
 type BackendAudit = {
   _id: string;
   createdAt: string;
   action: string;
   actorId: string;
   entityId: string;
-  metadata?: { decision?: string; status?: string; note?: string; actorEmail?: string };
+  metadata?: { decision?: string; status?: string; note?: string; actorEmail?: string; founderBadge?: boolean };
 };
 
 const toSessionUser = (data: BackendAuthUser): AuthUser => ({
@@ -151,6 +169,9 @@ const toAuditAction = (item: BackendAudit): AuditLogEntry["action"] => {
   if (item.action === "expert_status_updated") {
     return item.metadata?.status === "suspended" ? "expert_suspended" : "expert_reactivated";
   }
+  if (item.action === "founder_badge_updated") {
+    return item.metadata?.founderBadge ? "founder_badge_added" : "founder_badge_removed";
+  }
   if (item.action === "application_submitted" || item.action === "review_hidden" || item.action === "review_unhidden") {
     return item.action;
   }
@@ -163,6 +184,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [applications, setApplications] = useState<ExpertApplication[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [adminExperts, setAdminExperts] = useState<AdminExpert[]>([]);
   const [expertStatus, setExpertStatus] = useState<
     Record<string, ExpertAccountStatus>
   >(DEFAULT_EXPERT_STATUS);
@@ -174,18 +196,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       data.items.forEach((item) => {
         next[item._id] = item.profileStatus === "suspended" ? "suspended" : "active";
       });
-      setExpertStatus(next);
+      // Merge: the public list never includes suspended experts, which the admin list may have added
+      setExpertStatus((prev) => ({ ...prev, ...next }));
     } catch {
-      setExpertStatus({});
+      // Keep what we have
     }
   }, []);
 
   const loadAdminData = useCallback(async () => {
     try {
-      const [apps, audits] = await Promise.all([
+      const [apps, audits, experts] = await Promise.all([
         apiRequest<{ items: BackendApplication[] }>("/admin/applications", { auth: true }),
         apiRequest<{ items: BackendAudit[] }>("/admin/audit-logs", { auth: true }),
+        apiRequest<{ items: BackendAdminExpert[] }>("/admin/experts", { auth: true }),
       ]);
+      const mappedExperts: AdminExpert[] = experts.items.map((item) => ({
+        id: item._id,
+        name: item.fullName || "Expert",
+        headline: item.headline || "",
+        domain: item.domain || "",
+        city: item.city || "",
+        status: item.profileStatus === "suspended" ? "suspended" : "active",
+        founderBadge: Boolean(item.founderBadge),
+        reviewCount: item.reviewCount ?? 0,
+      }));
+      setAdminExperts(mappedExperts);
+      // The public list leaves out suspended experts, so the admin's status map comes from here
+      setExpertStatus(Object.fromEntries(mappedExperts.map((expert) => [expert.id, expert.status])));
       const mappedApps: ExpertApplication[] = apps.items.map((item) => ({
         id: item._id,
         email: item.email || "unknown@email.com",
@@ -221,6 +258,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch {
       setApplications([]);
       setAuditLogs([]);
+      setAdminExperts([]);
     }
   }, []);
 
@@ -392,9 +430,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         body: { decision, note: options.note ?? "", checklist: options.checklist },
         auth: true,
       });
-      await Promise.all([loadAdminData(), loadExpertStatuses()]);
+      await loadAdminData();
     },
-    [loadAdminData, loadExpertStatuses],
+    [loadAdminData],
   );
 
   const resubmitApplication = useCallback(async () => {
@@ -402,6 +440,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const data = await apiRequest<BackendAuthUser>("/users/me", { auth: true });
     await persistSession(toSessionUser(data));
   }, [persistSession]);
+
+  const setFounderBadge = useCallback(
+    async (expertId: string, founderBadge: boolean) => {
+      await apiRequest(`/admin/experts/${expertId}/founder`, {
+        method: "PATCH",
+        body: { founderBadge },
+        auth: true,
+      });
+      await loadAdminData();
+    },
+    [loadAdminData],
+  );
 
   const setExpertAccountStatus = useCallback(
     async (expertId: string, status: ExpertAccountStatus) => {
@@ -457,6 +507,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       reviewApplication,
       resubmitApplication,
       setExpertAccountStatus,
+      setFounderBadge,
+      adminExperts,
+      refreshAdminData: loadAdminData,
       updateProfile,
       refreshUser,
       logout,
@@ -472,6 +525,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       reviewApplication,
       resubmitApplication,
       setExpertAccountStatus,
+      setFounderBadge,
+      adminExperts,
+      loadAdminData,
       updateProfile,
       refreshUser,
       logout,

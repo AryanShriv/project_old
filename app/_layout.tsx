@@ -36,10 +36,24 @@ function RootContent() {
   useEffect(
     () =>
       subscribeToNotificationTaps((data) => {
-        if (data.type === "review_prompt" && data.requestId) {
-          router.push({ pathname: "/(user)/(tabs)/requests", params: { review: data.requestId } });
-        } else if (data.type === "request_expired") {
-          router.push("/(user)/(tabs)/requests");
+        switch (data.type) {
+          case "review_prompt":
+            if (data.requestId) {
+              router.push({ pathname: "/(user)/(tabs)/requests", params: { review: data.requestId } });
+            }
+            break;
+          case "request_updated":
+          case "request_expired":
+            router.push("/(user)/(tabs)/requests");
+            break;
+          case "new_request":
+          case "application_reviewed":
+            // The expert dashboard lists pending requests and shows the application status
+            router.push("/(expert)/(tabs)");
+            break;
+          case "new_message":
+            if (data.conversationId) router.push(`/chat/${data.conversationId}`);
+            break;
         }
       }),
     []

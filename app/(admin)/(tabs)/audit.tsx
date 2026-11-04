@@ -63,6 +63,10 @@ function formatAction(action: string) {
       return "Review hidden";
     case "review_unhidden":
       return "Review shown again";
+    case "founder_badge_added":
+      return "Founding Expert badge added";
+    case "founder_badge_removed":
+      return "Founding Expert badge removed";
     case "other":
       return "Other activity";
     default:

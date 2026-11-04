@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { Href } from "expo-router";
-import { router, Stack, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
@@ -19,6 +18,7 @@ import { radius } from "@/src/design-system/radius";
 import { minTapTarget, spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
 import { Review, reviewsApi } from "@/src/services/reviewsApi";
+import { signInToContinue, takePendingAction } from "@/src/utils/reentry";
 
 const ENGAGEMENT_LABELS: Record<string, string> = { remote: "Remote", onsite: "On-site" };
 
@@ -39,6 +39,21 @@ export default function ExpertProfileScreen() {
 
   const [reviews, setReviews] = useState<Review[]>([]);
   const expert = getById(id);
+
+  // Finish what a signed-out visitor started before signing in: save, or request a session (PRD 5.3)
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.role !== "user" || !expert) return;
+      const action = takePendingAction(expert.id);
+      if (action === "request") {
+        router.push({ pathname: "/booking/[id]", params: { id: expert.id } });
+      } else if (action === "save" && !isSaved(expert.id)) {
+        toggleSave(expert.id)
+          .then(() => Toast.show({ type: "success", text1: "Saved", text2: "Find them any time in your Saved tab." }))
+          .catch((error: Error) => Toast.show({ type: "error", text1: "Couldn't save", text2: error.message }));
+      }
+    }, [user?.role, expert, isSaved, toggleSave])
+  );
 
   useEffect(() => {
     if (id) {
@@ -69,20 +84,14 @@ export default function ExpertProfileScreen() {
     : undefined;
   const experienceVerifiedTrade = expert.verified && isTrade(expert) && !isRegulatedTrade(expert);
 
-  // Signed-out visitors come back to this profile after login (PRD 5.3)
-  const goToLogin = () =>
-    router.push({
-      pathname: "/(auth)/login",
-      params: { intent: "user", returnTo: `/expert/${expert.id}` },
-    } as Href);
-
   const requestSession = () => {
-    if (!isUser) return goToLogin();
+    // Signed-out visitors come back here after signing in, and the form opens (PRD 5.3)
+    if (!isUser) return signInToContinue(expert.id, "request", "profile");
     router.push({ pathname: "/booking/[id]", params: { id: expert.id } });
   };
 
   const onSave = async () => {
-    if (!isUser) return goToLogin();
+    if (!isUser) return signInToContinue(expert.id, "save", "profile");
     try {
       await toggleSave(expert.id);
       Toast.show({
@@ -120,6 +129,9 @@ export default function ExpertProfileScreen() {
 
           {/* 2. Trust bar */}
           <View style={styles.trustBar}>
+            {expert.founderBadge && (
+              <TrustChip styles={styles} icon="ribbon" iconColor={colors.primary} label="Founding Expert" />
+            )}
             <TrustChip
               styles={styles}
               icon="thumbs-up-outline"

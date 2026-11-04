@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams, router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 import { useAuth } from "@/src/context/AuthContext";
 import { useChat } from "@/src/context/ChatContext";
@@ -41,9 +42,19 @@ export default function ChatScreen() {
 
   const handleSend = () => {
     if (inputText.trim() && id) {
-      sendMessage(id, inputText.trim());
+      const text = inputText.trim();
       setInputText("");
       Keyboard.dismiss();
+      sendMessage(id, text).then((sent) => {
+        if (sent) return;
+        // Give the words back so nothing typed is lost
+        setInputText((current) => current || text);
+        Toast.show({
+          type: "error",
+          text1: "Message not sent",
+          text2: "Please check your connection and try again.",
+        });
+      });
     }
   };
 

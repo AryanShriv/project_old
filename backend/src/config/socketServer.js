@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const env = require("./env");
 const Message = require("../modules/chat/message.model");
 const Conversation = require("../modules/chat/conversation.model");
+const { pushNewMessage } = require("../modules/chat/chat.notifications");
 
 let io;
 
@@ -76,6 +77,9 @@ const initSocketServer = (httpServer) => {
         io.to("admin:monitor").emit("chat:receive", messageData);
 
         if (callback) callback({ success: true, message: messageData });
+
+        // After the sender has their confirmation: push to the other person (PRD 5.2)
+        pushNewMessage(conversation, socket.userId, text).catch(() => {});
       } catch (err) {
         if (callback) callback({ error: "Internal error" });
       }

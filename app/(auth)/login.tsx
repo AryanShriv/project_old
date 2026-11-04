@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { Href } from "expo-router";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -21,6 +20,7 @@ import { ThemeColors, brand } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { spacing } from "@/src/design-system/spacing";
 import type { AuthRoleIntent } from "@/src/types/auth";
+import { finishAuth } from "@/src/utils/reentry";
 
 export default function LoginScreen() {
   const { login, isLoading: authBoot } = useAuth();
@@ -30,6 +30,7 @@ export default function LoginScreen() {
   const params = useLocalSearchParams<{
     intent?: string;
     returnTo?: string;
+    origin?: string;
   }>();
 
   const intentParam =
@@ -41,23 +42,10 @@ export default function LoginScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Back to the expert the visitor was looking at, if any (PRD 5.3)
   const goAfterLogin = useCallback(
-    (role: AuthRoleIntent) => {
-      const returnTo = params.returnTo;
-      // returnTo points at user screens (e.g. an expert's profile), so it only applies to users
-      if (role === "user" && returnTo && typeof returnTo === "string") {
-        router.replace(returnTo as Href);
-        return;
-      }
-      if (role === "expert") {
-        router.replace("/(expert)/(tabs)");
-      } else if (role === "admin") {
-        router.replace("/(admin)/(tabs)");
-      } else {
-        router.replace("/(user)/(tabs)");
-      }
-    },
-    [params.returnTo],
+    (role: AuthRoleIntent) => finishAuth(role, { returnTo: params.returnTo, origin: params.origin }),
+    [params.returnTo, params.origin],
   );
 
   const onSubmit = async () => {
@@ -164,9 +152,13 @@ export default function LoginScreen() {
             <Pressable
               style={styles.linkRow}
               onPress={() =>
-                router.push({
+                // Replace rather than stack, so "back" after signing up returns to where the visitor started
+                router.replace({
                   pathname: "/(auth)/signup",
-                  params: intentParam === "expert" || intentParam === "user" ? { intent: intentParam } : {},
+                  params: {
+                    ...(intentParam === "expert" || intentParam === "user" ? { intent: intentParam } : {}),
+                    ...(params.returnTo ? { returnTo: params.returnTo, origin: params.origin ?? "" } : {}),
+                  },
                 })
               }
             >

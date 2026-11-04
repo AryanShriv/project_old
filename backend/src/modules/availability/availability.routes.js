@@ -5,21 +5,21 @@ const { requireAuth, requireRole } = require("../../middleware/auth");
 
 const router = express.Router();
 
-router.get("/:freelancerId/exceptions", requireAuth, exceptionsController.listExceptions);
+router.get("/:expertId/exceptions", requireAuth, exceptionsController.listExceptions);
 router.put(
-  "/:freelancerId/exceptions/:date",
+  "/:expertId/exceptions/:date",
   requireAuth,
   requireRole("expert", "admin"),
   exceptionsController.upsertException
 );
 router.delete(
-  "/:freelancerId/exceptions/:date",
+  "/:expertId/exceptions/:date",
   requireAuth,
   requireRole("expert", "admin"),
   exceptionsController.deleteException
 );
 
-router.get("/:freelancerId", requireAuth, controller.getAvailability);
-router.put("/:freelancerId", requireAuth, requireRole("expert", "admin"), controller.upsertAvailability);
+router.get("/:expertId", requireAuth, controller.getAvailability);
+router.put("/:expertId", requireAuth, requireRole("expert", "admin"), controller.upsertAvailability);
 
 module.exports = router;
