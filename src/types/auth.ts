@@ -109,6 +109,18 @@ export type RegisterInput = {
   };
 };
 
+/** An approved expert as the admin sees them, including suspended ones (GET /admin/experts) */
+export type AdminExpert = {
+  id: string;
+  name: string;
+  headline: string;
+  domain: string;
+  city: string;
+  status: "active" | "suspended";
+  founderBadge: boolean;
+  reviewCount: number;
+};
+
 export type AuditAction =
   | "application_submitted"
   | "application_approved"
@@ -117,6 +129,8 @@ export type AuditAction =
   | "expert_reactivated"
   | "review_hidden"
   | "review_unhidden"
+  | "founder_badge_added"
+  | "founder_badge_removed"
   | "other";
 
 export type AuditLogEntry = {

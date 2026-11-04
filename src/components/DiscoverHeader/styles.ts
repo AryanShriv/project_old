@@ -41,7 +41,11 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
         marginRight: spacing.xs,
         borderWidth: 1,
         borderColor: colors.border,
-        minHeight: 36, // Comfortable tap target
+        minHeight: minTapTarget,
+        justifyContent: "center",
+    },
+    subRow: {
+        marginTop: spacing.xs,
     },
     filterChipActive: {
         backgroundColor: colors.primary,

@@ -117,20 +117,39 @@ export async function configureNotificationHandler(): Promise<void> {
   try {
     const Notifications = await getNotificationsModule();
     Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-      }),
+      // This only runs while the app is open. Chat messages already appear live in the
+      // conversation and the Messages tab, so their banners would only interrupt.
+      handleNotification: async (notification) => {
+        const data = (notification.request.content.data ?? {}) as NotificationData;
+        const show = data.type !== "new_message";
+        return {
+          shouldShowAlert: show,
+          shouldPlaySound: show,
+          shouldSetBadge: true,
+          shouldShowBanner: show,
+          shouldShowList: show,
+        };
+      },
     });
   } catch {
     // Silently fail if notifications can't be configured.
   }
 }
 
-export type NotificationData = { type?: string; requestId?: string };
+/** The `data` the backend attaches to each push (see backend/src/utils/notify.js callers) */
+export type NotificationData = {
+  type?:
+    | "new_request" // to an expert
+    | "request_updated" // to a user: accepted or declined
+    | "request_expired"
+    | "review_prompt"
+    | "new_message"
+    | "application_reviewed"; // to an expert: approved or rejected
+  requestId?: string;
+  conversationId?: string;
+  status?: string;
+  decision?: string;
+};
 
 /**
  * Calls `onOpen` with the notification's data whenever the user taps a notification,

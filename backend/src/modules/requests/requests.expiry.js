@@ -1,6 +1,7 @@
 const Request = require("./request.model");
 const ExpertProfile = require("../experts/expert.model");
-const { sendPushToUser } = require("../../utils/push");
+const { templates } = require("../../utils/email");
+const { notify } = require("../../utils/notify");
 
 const SWEEP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -31,12 +32,12 @@ const expireRequest = async (requestId) => {
   if (!doc) return false;
 
   const expert = await ExpertProfile.findById(doc.expertId).select("fullName").lean();
-  const firstName = expert?.fullName?.split(" ")[0] || "The expert";
-  await notifyExpired(doc, firstName);
+  await notifyExpired(doc, expert?.fullName || "The expert");
   return true;
 };
 
-const notifyExpired = async (doc, expertFirstName) => {
+const notifyExpired = async (doc, expertName) => {
+  const expertFirstName = expertName.split(" ")[0];
   const payload = {
     requestId: doc._id.toString(),
     status: "expired",
@@ -49,10 +50,14 @@ const notifyExpired = async (doc, expertFirstName) => {
     // Socket server is not running (scripts, tests); push still goes out below
   }
 
-  await sendPushToUser(doc.userId, {
-    title: "Your request has expired",
-    body: `${expertFirstName} wasn't able to respond within 48 hours. You can send a request to another expert.`,
-    data: { type: "request_expired", ...payload },
+  await notify(doc.userId, {
+    kind: "requests",
+    push: {
+      title: "Your request has expired",
+      body: `${expertFirstName} wasn't able to respond within 48 hours. You can send a request to another expert.`,
+      data: { type: "request_expired", ...payload },
+    },
+    email: (firstName) => templates.requestExpired({ userFirstName: firstName, expertName }),
   });
 };
 

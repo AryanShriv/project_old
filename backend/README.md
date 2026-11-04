@@ -17,21 +17,19 @@ Health endpoint: `GET /health`
 ## Naming: expert / user (and the legacy names you will still see)
 
 The product language is **expert** (supply side) and **user** (demand side). "Freelancer" and "client"
-are retired. The user roles and the `expertprofiles` collection were already migrated
-(`src/migrations/terminology-refactor.js`). A few old identifiers remain on purpose because renaming
-them means a data migration or a breaking URL change. **They all mean "expert"**:
+are retired. The user roles and the `expertprofiles` collection were migrated in Phase 1
+(`src/migrations/terminology-refactor.js`), and the availability collections in Phase 3
+(`src/migrations/availability-expert-id.js`, which also runs on server start). One old name remains on purpose:
 
-| Legacy name | Where | What it actually is | Plan |
+| Legacy name | Where | What it is | Plan |
 |---|---|---|---|
-| `freelancerId` | `availability` + `availabilityexceptions` collections, `/availability/:freelancerId` routes | `ExpertProfile._id` | Rename with a migration (PRD Phase 3) |
-| `FreelancerProfile` | `availability.access.js` | Local alias of the `ExpertProfile` model | Rename with the above |
 | `/freelancers/*` | `routes/index.js` | Redirect to `/experts/*` for old app builds | Remove once no old builds are in use |
-| `app/(admin)/(tabs)/freelancers.tsx` | Admin web app | The admin "Experts" tab (its label already says Experts) | Rename the route file in Phase 3 |
 
-Note for PRD 5.5: the dedicated endpoint already exists as `POST /applications/expert`; the remaining work is
-moving the app's expert sign-up onto it instead of `/auth/register`.
+Do not add new code using "freelancer" or "client". Use `expert` / `expertId` / `user` / `userId`.
 
-Do not add new code using these names. Use `expert` / `expertId` / `user` / `userId`.
+**Expert applications (PRD 5.5), decided in Phase 3:** sign-up keeps creating the account, the expert profile
+and the application in one call (`POST /auth/register`), so a dropped connection can never leave an account
+without an application. `POST /applications/expert` is used for resubmitting after a rejection.
 
 ## Requests ("Request a Session")
 
@@ -75,12 +73,41 @@ Transactional email goes through [Resend](https://resend.com) (`src/utils/email.
 `EMAIL_FROM` (an address on a domain verified in Resend). Without a key, emails are printed to the console, so
 local development and tests never send real mail.
 
+## Notifications (PRD 5.2)
+
+Every event goes out by push and email through `notify()` in `src/utils/notify.js`. Use it for new notifications;
+don't call `sendPushToUser` / `sendEmail` directly.
+
+| Event | To | Push `data.type` | Switch |
+|---|---|---|---|
+| Application approved / rejected | Expert | `application_reviewed` | Always sent |
+| New request | Expert | `new_request` | `requestUpdates` |
+| Request accepted / declined | User | `request_updated` | `requestUpdates` |
+| Request expired (48h) | User | `request_expired` | `requestUpdates` |
+| Session completed: review prompt | User | `review_prompt` | `requestUpdates` |
+| New chat message | Other participant | `new_message` | `newMessages` |
+| Messages unread after 1 hour (one email per conversation) | Other participant | email only | `newMessages` |
+
+- The switches are the Notifications screen in the app, stored in `user.notificationPrefs`
+  (`GET` / `PATCH /users/me/notification-prefs`) and applied to push and email alike.
+- Chat pushes are sent for every message; the app hides their banners while it is open, because the
+  conversation updates live. The unread-message email job (`chat.notifications.js`) runs every 5 minutes, and
+  marks each message with `unreadEmailSentAt` so nobody is emailed twice about the same message.
+- The app routes notification taps by `data.type` in `app/_layout.tsx`.
+
+## Admin: experts and Founding Experts (PRD 5.4)
+
+- `GET /admin/experts` lists every approved expert, **including suspended ones** (the public `/experts` list only
+  shows active profiles, so it can't be used to reactivate anyone).
+- `PATCH /admin/experts/:id/founder` with `{ founderBadge: true | false }` marks an approved expert as a Founding
+  Expert. The badge shows on their card and profile. Every change is written to the audit log.
+
 ## Current status
 
 - Route/module skeletons are implemented for:
   - auth
   - users
-  - freelancers
+  - experts
   - applications
   - requests
   - saved

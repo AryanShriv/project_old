@@ -6,7 +6,8 @@ const User = require("../users/user.model");
 const ExpertProfile = require("../experts/expert.model");
 const AuditLog = require("./audit-log.model");
 const { isRegulatedTrade } = require("../../constants/trust");
-const { sendEmail, templates } = require("../../utils/email");
+const { templates } = require("../../utils/email");
+const { notify } = require("../../utils/notify");
 
 const listApplicationsSchema = z.object({
   status: z.enum(["pending", "approved", "rejected"]).optional(),
@@ -165,7 +166,7 @@ const reviewApplication = async (req, res) => {
   }
   await profile.save();
 
-  const user = await User.findByIdAndUpdate(
+  await User.findByIdAndUpdate(
     application.applicantUserId,
     { $set: { accountStatus: decision === "approved" ? "active" : "pending_review" } },
     { new: true }
@@ -184,14 +185,74 @@ const reviewApplication = async (req, res) => {
     },
   });
 
+  // Account decisions are always sent, whatever the notification switches say (PRD 5.2)
   const firstName = firstNameOf(profile.fullName);
-  const email =
-    decision === "approved"
-      ? templates.applicationApproved({ firstName })
-      : templates.applicationRejected({ firstName, reason: note, canResubmit: profile.resubmissionCount < 1 });
-  await sendEmail({ to: user?.email, ...email });
+  const approved = decision === "approved";
+  await notify(application.applicantUserId, {
+    kind: "account",
+    push: {
+      title: approved ? "Your profile is live on G(Old)" : "An update on your G(Old) application",
+      body: approved
+        ? "Our team has approved your profile. People can now request sessions with you."
+        : "Our team has left a note about your application. Tap to read it.",
+      data: { type: "application_reviewed", decision },
+    },
+    email: () =>
+      approved
+        ? templates.applicationApproved({ firstName })
+        : templates.applicationRejected({ firstName, reason: note, canResubmit: profile.resubmissionCount < 1 }),
+  });
 
   return sendSuccess(res, application, "Application reviewed");
+};
+
+/**
+ * GET /admin/experts: every approved expert, including suspended ones, so the admin can
+ * reactivate them (the public /experts list only shows active profiles).
+ */
+const listExpertsForAdmin = async (req, res) => {
+  const items = await ExpertProfile.find({ approvalStatus: "approved" })
+    .select("userId fullName headline domain city country profileStatus founderBadge reviewCount recommendPercentage")
+    .sort({ fullName: 1 })
+    .lean();
+  return sendSuccess(res, { items }, "Experts fetched");
+};
+
+const founderSchema = z.object({
+  founderBadge: z.boolean(),
+  note: z.string().trim().max(300).optional().default(""),
+});
+
+/** PRD 5.4: admin marks an approved expert as a Founding Expert (shown permanently on the profile) */
+const setFounderBadge = async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return sendError(res, "Invalid expert id", 400);
+  }
+  const parsed = founderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return sendError(res, "Invalid founder badge payload", 400, parsed.error.flatten());
+  }
+
+  const expert = await ExpertProfile.findById(req.params.id);
+  if (!expert) {
+    return sendError(res, "Expert not found", 404);
+  }
+  if (parsed.data.founderBadge && expert.approvalStatus !== "approved") {
+    return sendError(res, "Only approved experts can be Founding Experts", 400);
+  }
+
+  expert.founderBadge = parsed.data.founderBadge;
+  await expert.save();
+  // Removing the badge is allowed to correct a mistake; the audit log keeps the history
+  await AuditLog.create({
+    actorId: req.auth.sub,
+    action: "founder_badge_updated",
+    entityType: "expert_profile",
+    entityId: expert._id.toString(),
+    metadata: { founderBadge: parsed.data.founderBadge, note: parsed.data.note, userId: expert.userId.toString() },
+  });
+
+  return sendSuccess(res, { expertId: expert._id, founderBadge: expert.founderBadge }, "Founding Expert badge updated");
 };
 
 const setExpertStatus = async (req, res) => {
@@ -253,4 +314,6 @@ module.exports = {
   reviewApplication,
   setExpertStatus,
   listAuditLogs,
+  setFounderBadge,
+  listExpertsForAdmin,
 };

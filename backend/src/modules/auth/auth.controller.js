@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { z } = require("zod");
 const User = require("../users/user.model");
-const FreelancerProfile = require("../experts/expert.model");
+const ExpertProfile = require("../experts/expert.model");
 const Application = require("../applications/application.model");
 const env = require("../../config/env");
 const { sendSuccess, sendError } = require("../../utils/http");
@@ -161,7 +161,7 @@ const register = async (req, res) => {
         : [];
     const onsite = details.engagementTypes.includes("onsite");
 
-    const profile = await FreelancerProfile.create({
+    const profile = await ExpertProfile.create({
       userId: user._id,
       fullName,
       headline: "",

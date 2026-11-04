@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { Href } from "expo-router";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { type ComponentRef, useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -25,6 +24,7 @@ import { radius } from "@/src/design-system/radius";
 import { minTapTarget, spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
 import type { AuthRoleIntent, RegisterInput } from "@/src/types/auth";
+import { finishAuth } from "@/src/utils/reentry";
 
 type Country = "Canada" | "India";
 type SessionMode = "remote" | "onsite";
@@ -43,7 +43,8 @@ export default function SignupScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
 
-  const params = useLocalSearchParams<{ intent?: string }>();
+  const params = useLocalSearchParams<{ intent?: string; returnTo?: string; origin?: string }>();
+  const reentry = params.returnTo ? { returnTo: params.returnTo, origin: params.origin ?? "" } : {};
   const [role, setRole] = useState<AuthRoleIntent | null>(
     params.intent === "expert" ? "expert" : params.intent === "user" ? "user" : null,
   );
@@ -203,8 +204,9 @@ export default function SignupScreen() {
         setError(result.message);
         return;
       }
-      // New experts land on their dashboard, which explains that the application is being reviewed
-      router.replace((isExpert ? "/(expert)/(tabs)" : "/(user)/(tabs)") as Href);
+      // New experts land on their dashboard, which explains that the application is being reviewed.
+      // New users go back to the expert they were looking at, if any (PRD 5.3).
+      finishAuth(isExpert ? "expert" : "user", reentry);
     } finally {
       setSubmitting(false);
     }
@@ -516,7 +518,7 @@ export default function SignupScreen() {
 
           <Pressable
             style={styles.linkRow}
-            onPress={() => router.replace("/(auth)/login")}
+            onPress={() => router.replace({ pathname: "/(auth)/login", params: reentry })}
             accessibilityRole="link"
           >
             <Text style={styles.link}>Already have an account? Sign in</Text>

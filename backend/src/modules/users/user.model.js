@@ -28,6 +28,13 @@ const userSchema = new mongoose.Schema(
     profile: { type: profileSchema, default: () => ({}) },
     refreshTokenHash: { type: String, default: null },
     pushTokens: { type: [String], default: [] },
+    // The switches on the app's Notifications screen. They apply to push and email alike.
+    // Account decisions (application approved/rejected) are always sent. (PRD 5.2)
+    notificationPrefs: {
+      requestUpdates: { type: Boolean, default: true }, // requests, their outcome, review prompts
+      newMessages: { type: Boolean, default: true },
+      appUpdates: { type: Boolean, default: false },
+    },
     // What the person agreed to at signup, and when (PRD 4.5)
     legalAcceptance: {
       termsVersion: { type: String, default: "" },

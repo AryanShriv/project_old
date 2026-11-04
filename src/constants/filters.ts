@@ -1,4 +1,8 @@
 // src/constants/filters.ts
+//
+// The G(Old) taxonomy (PRD 5.1): each category and the skills shown as the second row of
+// filter chips on Discover. This is the one place to edit categories or skills.
+// Signup ("Your main field") and Discover both read from here.
 
 const FILTER_MAP: Record<string, string[]> = {
 
@@ -227,8 +231,6 @@ const FILTER_MAP: Record<string, string[]> = {
 export default FILTER_MAP;
 
 
-// src/constants/filters.ts — add this
-
 export const CANADA_CATEGORY_ORDER = [
     "Electrical",
     "Plumbing",
@@ -282,3 +284,46 @@ export const INDIA_CATEGORY_ORDER = [
     "Construction",
     "Landscaping",
 ];
+
+/** Trades first for Canada, knowledge first for India (PRD 5.1) */
+export const categoryOrderFor = (country: "Canada" | "India") =>
+    country === "India" ? INDIA_CATEGORY_ORDER : CANADA_CATEGORY_ORDER;
+
+type Matchable = {
+    title: string;
+    tagline: string;
+    skills?: string[];
+    domain?: string;
+    categories?: string[];
+};
+
+const normalise = (value: string) => value.trim().toLowerCase();
+
+/**
+ * Does this expert belong in a category? Their chosen field (domain / categories) decides;
+ * older profiles without one fall back to matching their skills and headline.
+ */
+export const expertInCategory = (expert: Matchable, category: string) => {
+    const wanted = normalise(category);
+    if (expert.domain && normalise(expert.domain) === wanted) return true;
+    if (expert.categories?.some((c) => normalise(c) === wanted)) return true;
+    const keywords = (FILTER_MAP[category] ?? []).map(normalise);
+    return (
+        normalise(expert.title).includes(wanted) ||
+        (expert.skills ?? []).some((skill) => keywords.some((kw) => normalise(skill).includes(kw)))
+    );
+};
+
+// Words in a skill chip that carry meaning, e.g. "Panel Upgrades" -> ["panel", "upgrade"]
+const significantWords = (skill: string) =>
+    normalise(skill)
+        .split(/[^a-z0-9]+/)
+        .filter((word) => word.length >= 4)
+        .map((word) => (word.endsWith("s") ? word.slice(0, -1) : word));
+
+/** Does this expert mention a skill chip in their skills, headline or tagline? */
+export const expertHasSkill = (expert: Matchable, skill: string) => {
+    const text = normalise([expert.title, expert.tagline, ...(expert.skills ?? [])].join(" "));
+    if (text.includes(normalise(skill))) return true;
+    return significantWords(skill).some((word) => text.includes(word));
+};

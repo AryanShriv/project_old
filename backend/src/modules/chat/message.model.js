@@ -23,6 +23,11 @@ const messageSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Set when this message was covered by an "unread messages" email, so each is emailed at most once
+    unreadEmailSentAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true, versionKey: false }
 );

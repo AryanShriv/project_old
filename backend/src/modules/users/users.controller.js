@@ -51,5 +51,35 @@ const updateMe = async (req, res) => {
   return sendSuccess(res, await buildAuthUserPayload(user), "Profile updated");
 };
 
-module.exports = { getMe, updateMe };
+const prefsSchema = z
+  .object({
+    requestUpdates: z.boolean().optional(),
+    newMessages: z.boolean().optional(),
+    appUpdates: z.boolean().optional(),
+  })
+  .refine((payload) => Object.keys(payload).length > 0, { message: "At least one setting is required" });
+
+const PREF_DEFAULTS = { requestUpdates: true, newMessages: true, appUpdates: false };
+
+/** GET /users/me/notification-prefs: the switches on the Notifications screen (PRD 5.2) */
+const getNotificationPrefs = async (req, res) => {
+  const user = await User.findById(req.auth.sub).select("notificationPrefs").lean();
+  if (!user) return sendError(res, "User not found", 404);
+  return sendSuccess(res, { ...PREF_DEFAULTS, ...user.notificationPrefs }, "Notification settings");
+};
+
+/** PATCH /users/me/notification-prefs: change one or more switches */
+const updateNotificationPrefs = async (req, res) => {
+  const parsed = prefsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return sendError(res, "Invalid notification settings", 400, parsed.error.flatten());
+  }
+  const $set = {};
+  for (const [key, value] of Object.entries(parsed.data)) $set[`notificationPrefs.${key}`] = value;
+  const user = await User.findByIdAndUpdate(req.auth.sub, { $set }, { new: true }).select("notificationPrefs").lean();
+  if (!user) return sendError(res, "User not found", 404);
+  return sendSuccess(res, { ...PREF_DEFAULTS, ...user.notificationPrefs }, "Notification settings saved");
+};
+
+module.exports = { getMe, updateMe, getNotificationPrefs, updateNotificationPrefs };
 

@@ -16,7 +16,8 @@ type ChatContextType = {
   messages: Message[];
   totalUnreadCount: number;
   typingUsers: Record<string, string>; // conversationId -> userId
-  sendMessage: (conversationId: string, text: string) => void;
+  /** Resolves true once the server has stored the message, false if it could not be sent */
+  sendMessage: (conversationId: string, text: string) => Promise<boolean>;
   emitTyping: (conversationId: string) => void;
   markAsRead: (conversationId: string) => void;
   loadMoreMessages: (conversationId: string) => Promise<void>;
@@ -134,19 +135,31 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [activeConversationId]);
 
-  const sendMessage = useCallback((conversationId: string, text: string) => {
-    if (socket) {
-      socket.emit("chat:send", { conversationId, text }, (response: any) => {
-        if (response?.success && response?.message) {
-          setMessages((prev) => {
-            if (prev.find((m) => m._id === response.message._id)) return prev;
-            return [...prev, response.message].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-          });
-          fetchConversations();
+  const sendMessage = useCallback(
+    (conversationId: string, text: string) =>
+      new Promise<boolean>((resolve) => {
+        if (!socket?.connected) {
+          resolve(false);
+          return;
         }
-      });
-    }
-  }, [socket, fetchConversations]);
+        // No answer from the server within 10s counts as not sent
+        const timer = setTimeout(() => resolve(false), 10_000);
+        socket.emit("chat:send", { conversationId, text }, (response: any) => {
+          clearTimeout(timer);
+          if (response?.success && response?.message) {
+            setMessages((prev) => {
+              if (prev.find((m) => m._id === response.message._id)) return prev;
+              return [...prev, response.message].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            });
+            fetchConversations();
+            resolve(true);
+          } else {
+            resolve(false);
+          }
+        });
+      }),
+    [socket, fetchConversations]
+  );
 
   const emitTyping = useCallback((conversationId: string) => {
     if (socket) {

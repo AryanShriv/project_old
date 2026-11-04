@@ -3,8 +3,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
+import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
+import { apiRequest } from "@/src/services/apiClient";
 import { ThemeColors, brand } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { spacing } from "@/src/design-system/spacing";
@@ -36,13 +39,14 @@ const ROWS: NotifRow[] = [
     key: "requestUpdates",
     icon: "paper-plane-outline",
     label: "Request updates",
-    description: "Get notified when an expert accepts or declines your session request.",
+    description:
+      "New session requests, when an expert accepts or declines, expired requests, and reminders to share a review.",
   },
   {
     key: "newMessages",
     icon: "chatbubble-outline",
     label: "New messages",
-    description: "Get notified when you receive a new message in a conversation.",
+    description: "A notification for each new message, and an email if a message is still unread after an hour.",
   },
   {
     key: "appUpdates",
@@ -57,23 +61,49 @@ export default function NotificationsScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
 
-  // Load saved prefs on mount
+  const { user } = useAuth();
+
+  // Show the last known settings straight away, then the server's (which decides what is sent)
   useEffect(() => {
-    AsyncStorage.getItem(PREFS_KEY).then((raw) => {
-      if (raw) {
-        try {
-          setPrefs({ ...DEFAULT_PREFS, ...JSON.parse(raw) });
-        } catch {
-          // use defaults
-        }
-      }
-    });
-  }, []);
+    AsyncStorage.getItem(PREFS_KEY)
+      .then((raw) => {
+        if (raw) setPrefs((current) => ({ ...current, ...JSON.parse(raw) }));
+      })
+      .catch(() => {
+        // use defaults
+      });
+    if (!user) return;
+    apiRequest<NotifPrefs>("/users/me/notification-prefs", { auth: true })
+      .then((server) => {
+        setPrefs(server);
+        AsyncStorage.setItem(PREFS_KEY, JSON.stringify(server)).catch(() => {});
+      })
+      .catch(() => {
+        // Offline: keep showing the cached settings
+      });
+  }, [user]);
 
   const toggle = async (key: keyof NotifPrefs) => {
+    const previous = prefs;
     const next = { ...prefs, [key]: !prefs[key] };
     setPrefs(next);
-    await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(next));
+    if (!user) {
+      await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(next));
+      return;
+    }
+    try {
+      const saved = await apiRequest<NotifPrefs>("/users/me/notification-prefs", {
+        method: "PATCH",
+        auth: true,
+        body: { [key]: next[key] },
+      });
+      setPrefs(saved);
+      await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(saved));
+      Toast.show({ type: "success", text1: "Saved", text2: "This applies to notifications and emails." });
+    } catch (error) {
+      setPrefs(previous);
+      Toast.show({ type: "error", text1: "Not saved", text2: (error as Error).message });
+    }
   };
 
   return (
@@ -84,8 +114,8 @@ export default function NotificationsScreen() {
         <View style={styles.infoCard}>
           <Ionicons name="notifications-outline" size={28} color={colors.primary} />
           <Text style={styles.infoText}>
-            Control which notifications you receive from G(Old). Push notifications
-            are only delivered on real devices with a development build.
+            Choose what G(Old) tells you about. Each setting covers both phone
+            notifications and emails.
           </Text>
         </View>
 
@@ -118,8 +148,7 @@ export default function NotificationsScreen() {
         <View style={styles.noteRow}>
           <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
           <Text style={styles.noteText}>
-            Preferences are saved on this device. To stop all notifications, you
-            can also manage them in your device's system Settings app.
+            {"We always tell you about decisions on your account, such as your expert application. To stop all phone notifications, use your phone's Settings app."}
           </Text>
         </View>
 

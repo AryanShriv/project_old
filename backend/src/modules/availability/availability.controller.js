@@ -2,7 +2,7 @@ const { z } = require("zod");
 const { sendSuccess, sendError } = require("../../utils/http");
 const Availability = require("./availability.model");
 const { defaultSlots } = require("./availability.defaults");
-const { assertFreelancerAccess } = require("./availability.access");
+const { assertExpertAccess } = require("./availability.access");
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -19,15 +19,15 @@ const upsertSchema = z.object({
 });
 
 const getAvailability = async (req, res) => {
-  const access = await assertFreelancerAccess(req.params.freelancerId, req.auth);
+  const access = await assertExpertAccess(req.params.expertId, req.auth);
   if (!access.ok) {
     return sendError(res, access.message, access.status);
   }
 
-  let record = await Availability.findOne({ freelancerId: req.params.freelancerId }).lean();
+  let record = await Availability.findOne({ expertId: req.params.expertId }).lean();
   if (!record) {
     record = {
-      freelancerId: req.params.freelancerId,
+      expertId: req.params.expertId,
       timezone: "UTC",
       slots: defaultSlots(),
     };
@@ -37,7 +37,7 @@ const getAvailability = async (req, res) => {
 };
 
 const upsertAvailability = async (req, res) => {
-  const access = await assertFreelancerAccess(req.params.freelancerId, req.auth);
+  const access = await assertExpertAccess(req.params.expertId, req.auth);
   if (!access.ok) {
     return sendError(res, access.message, access.status);
   }
@@ -54,10 +54,10 @@ const upsertAvailability = async (req, res) => {
   }
 
   const record = await Availability.findOneAndUpdate(
-    { freelancerId: req.params.freelancerId },
+    { expertId: req.params.expertId },
     {
       $set: {
-        freelancerId: req.params.freelancerId,
+        expertId: req.params.expertId,
         timezone: parsed.data.timezone || "UTC",
         slots: parsed.data.slots,
       },

@@ -6,8 +6,8 @@ const ExpertProfile = require("../experts/expert.model");
 const { expireRequest } = require("./requests.expiry");
 const User = require("../users/user.model");
 const { DISCLAIMER_VERSION, requiredDisclaimerIds } = require("../../constants/trust");
-const { sendPushToUser } = require("../../utils/push");
-const { sendEmail, templates } = require("../../utils/email");
+const { templates } = require("../../utils/email");
+const { notify, firstNameOf } = require("../../utils/notify");
 
 // PRD 3.5 payload: expertId, headline, description, sessionType, timingPreference.
 // projectTitle / userMessage / engagementType are still accepted from older app builds.
@@ -69,7 +69,9 @@ const createRequest = async (req, res) => {
     return sendError(res, "Invalid expertId", 400);
   }
 
-  const expert = await ExpertProfile.findById(expertId).select("_id profileStatus country domain categories skills");
+  const expert = await ExpertProfile.findById(expertId).select(
+    "_id userId fullName profileStatus country domain categories skills"
+  );
   if (!expert) {
     return sendError(res, "Expert not found", 404);
   }
@@ -105,6 +107,8 @@ const createRequest = async (req, res) => {
     disclaimersAcknowledgedAt: new Date(),
     status: "pending",
   });
+
+  await notifyExpertOfNewRequest(expert, created, req.auth.sub);
 
   return sendSuccess(res, created, "Request created", 201);
 };
@@ -212,6 +216,9 @@ const updateRequestStatus = async (req, res) => {
   if (nextStatus === "completed") {
     await sendReviewPrompt(requestDoc);
   }
+  if (nextStatus === "accepted" || nextStatus === "rejected") {
+    await notifyUserOfResponse(requestDoc, nextStatus);
+  }
 
   if (nextStatus === "accepted") {
     try {
@@ -249,23 +256,57 @@ const updateRequestStatus = async (req, res) => {
   return sendSuccess(res, requestDoc, "Request status updated");
 };
 
+const expertNameFor = async (expertId) =>
+  (await ExpertProfile.findById(expertId).select("fullName").lean())?.fullName || "your expert";
+
+/** PRD 5.2: the expert hears about a new request on both channels */
+const notifyExpertOfNewRequest = async (expert, requestDoc, requesterId) => {
+  const requester = await User.findById(requesterId).select("profile.fullName").lean();
+  const userName = requester?.profile?.fullName || "Someone";
+  await notify(expert.userId, {
+    kind: "requests",
+    push: {
+      title: `New session request from ${firstNameOf(userName, "someone")}`,
+      body: requestDoc.headline,
+      data: { type: "new_request", requestId: requestDoc._id.toString() },
+    },
+    email: (firstName) =>
+      templates.newRequest({ expertFirstName: firstName, userName, headline: requestDoc.headline }),
+  });
+};
+
+/** PRD 5.2: the user hears when the expert accepts or declines */
+const notifyUserOfResponse = async (requestDoc, status) => {
+  const expertName = await expertNameFor(requestDoc.expertId);
+  const accepted = status === "accepted";
+  await notify(requestDoc.userId, {
+    kind: "requests",
+    push: {
+      title: accepted ? `${expertName} accepted your request` : `${expertName} can't take your request`,
+      body: accepted
+        ? "You can now message each other to agree a time."
+        : "Other experienced people may be a great fit. Tap to find another expert.",
+      data: { type: "request_updated", status, requestId: requestDoc._id.toString() },
+    },
+    email: (firstName) =>
+      accepted
+        ? templates.requestAccepted({ userFirstName: firstName, expertName })
+        : templates.requestDeclined({ userFirstName: firstName, expertName }),
+  });
+};
+
 /** PRD 4.1: "How was your session with [Expert]?" by push and email, opening the review form. */
 const sendReviewPrompt = async (requestDoc) => {
-  const [expert, user] = await Promise.all([
-    ExpertProfile.findById(requestDoc.expertId).select("fullName").lean(),
-    User.findById(requestDoc.userId).select("email profile.fullName").lean(),
-  ]);
-  const expertName = expert?.fullName || "your expert";
-  const userFirstName = (user?.profile?.fullName || "").split(" ")[0] || "there";
-
-  await Promise.all([
-    sendPushToUser(requestDoc.userId, {
+  const expertName = await expertNameFor(requestDoc.expertId);
+  await notify(requestDoc.userId, {
+    kind: "requests",
+    push: {
       title: `How was your session with ${expertName}?`,
       body: "Share what you learned. It takes a minute.",
       data: { type: "review_prompt", requestId: requestDoc._id.toString() },
-    }),
-    sendEmail({ to: user?.email, ...templates.reviewPrompt({ userFirstName, expertName }) }),
-  ]);
+    },
+    email: (firstName) => templates.reviewPrompt({ userFirstName: firstName, expertName }),
+  });
 };
 
 module.exports = { createRequest, listRequests, updateRequestStatus };

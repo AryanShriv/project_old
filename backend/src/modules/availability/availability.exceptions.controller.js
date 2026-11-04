@@ -1,7 +1,7 @@
 const { z } = require("zod");
 const { sendSuccess, sendError } = require("../../utils/http");
 const AvailabilityException = require("./availability-exception.model");
-const { assertFreelancerAccess } = require("./availability.access");
+const { assertExpertAccess } = require("./availability.access");
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -18,7 +18,7 @@ const upsertExceptionSchema = z.object({
 });
 
 const listExceptions = async (req, res) => {
-  const access = await assertFreelancerAccess(req.params.freelancerId, req.auth);
+  const access = await assertExpertAccess(req.params.expertId, req.auth);
   if (!access.ok) {
     return sendError(res, access.message, access.status);
   }
@@ -33,7 +33,7 @@ const listExceptions = async (req, res) => {
   const end = `${year}-${month}-31`;
 
   const items = await AvailabilityException.find({
-    freelancerId: req.params.freelancerId,
+    expertId: req.params.expertId,
     date: { $gte: start, $lte: end },
   })
     .sort({ date: 1 })
@@ -43,7 +43,7 @@ const listExceptions = async (req, res) => {
 };
 
 const upsertException = async (req, res) => {
-  const access = await assertFreelancerAccess(req.params.freelancerId, req.auth);
+  const access = await assertExpertAccess(req.params.expertId, req.auth);
   if (!access.ok) {
     return sendError(res, access.message, access.status);
   }
@@ -67,10 +67,10 @@ const upsertException = async (req, res) => {
   }
 
   const record = await AvailabilityException.findOneAndUpdate(
-    { freelancerId: req.params.freelancerId, date: req.params.date },
+    { expertId: req.params.expertId, date: req.params.date },
     {
       $set: {
-        freelancerId: req.params.freelancerId,
+        expertId: req.params.expertId,
         date: req.params.date,
         kind: parsed.data.kind,
         startTime: parsed.data.startTime || "",
@@ -85,7 +85,7 @@ const upsertException = async (req, res) => {
 };
 
 const deleteException = async (req, res) => {
-  const access = await assertFreelancerAccess(req.params.freelancerId, req.auth);
+  const access = await assertExpertAccess(req.params.expertId, req.auth);
   if (!access.ok) {
     return sendError(res, access.message, access.status);
   }
@@ -95,7 +95,7 @@ const deleteException = async (req, res) => {
   }
 
   const removed = await AvailabilityException.findOneAndDelete({
-    freelancerId: req.params.freelancerId,
+    expertId: req.params.expertId,
     date: req.params.date,
   });
 

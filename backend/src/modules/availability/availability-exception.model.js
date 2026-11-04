@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const availabilityExceptionSchema = new mongoose.Schema(
   {
-    freelancerId: {
+    expertId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ExpertProfile",
       required: true,
@@ -26,7 +26,7 @@ const availabilityExceptionSchema = new mongoose.Schema(
   { timestamps: true, versionKey: false }
 );
 
-availabilityExceptionSchema.index({ freelancerId: 1, date: 1 }, { unique: true });
+availabilityExceptionSchema.index({ expertId: 1, date: 1 }, { unique: true });
 
 const AvailabilityException = mongoose.model("AvailabilityException", availabilityExceptionSchema);
 

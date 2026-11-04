@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { DiscoverHeader } from "@/src/components/DiscoverHeader/DiscoverHeader";
 import { ExpertCard } from "@/src/components/ExpertCard/ExpertCard";
-import FILTER_MAP, { CANADA_CATEGORY_ORDER, INDIA_CATEGORY_ORDER } from "@/src/constants/filters";
+import FILTER_MAP, { categoryOrderFor, expertHasSkill, expertInCategory } from "@/src/constants/filters";
 import { useAuth } from "@/src/context/AuthContext";
 import { useExperts } from "@/src/context/ExpertsContext";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -12,12 +12,14 @@ import { ThemeColors } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { minTapTarget, spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
+import { deviceCountry } from "@/src/utils/region";
 
 export default function DiscoverScreen() {
   const { user } = useAuth();
   const { experts, isLoading, error, refresh: refreshExperts } = useExperts();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [activeSkill, setActiveSkill] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -28,22 +30,26 @@ export default function DiscoverScreen() {
     setIsRefreshing(false);
   };
 
-  const userCountry = user?.profile?.country?.toLowerCase();
-  const orderedCategories = userCountry === "canada" ? CANADA_CATEGORY_ORDER : INDIA_CATEGORY_ORDER;
-  const availableFilters = ["All", ...orderedCategories];
+  // A country on the profile wins; otherwise the phone's region decides (trades first for Canada)
+  const profileCountry = user?.profile?.country?.toLowerCase();
+  const country = profileCountry === "india" ? "India" : profileCountry === "canada" ? "Canada" : deviceCountry();
+  const availableFilters = ["All", ...categoryOrderFor(country)];
+  const skillsInCategory = activeFilter === "All" ? [] : FILTER_MAP[activeFilter] ?? [];
+
+  const chooseCategory = (category: string) => {
+    setActiveFilter(category);
+    setActiveSkill(null);
+  };
 
   const filtered = useMemo(() => {
     let results = experts;
 
-    // Filter by category chip
+    // Category, then skill within it (PRD 5.1)
     if (activeFilter !== "All") {
-      const keywords = FILTER_MAP[activeFilter] ?? [];
-      results = results.filter((f) =>
-        f.skills?.some((s) =>
-          keywords.some((kw) => s.toLowerCase().includes(kw.toLowerCase()))
-        ) ||
-        f.title.toLowerCase().includes(activeFilter.toLowerCase())
-      );
+      results = results.filter((expert) => expertInCategory(expert, activeFilter));
+      if (activeSkill) {
+        results = results.filter((expert) => expertHasSkill(expert, activeSkill));
+      }
     }
 
     // Filter by search text
@@ -59,7 +65,7 @@ export default function DiscoverScreen() {
     }
 
     return results;
-  }, [experts, search, activeFilter]);
+  }, [experts, search, activeFilter, activeSkill]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -70,8 +76,11 @@ export default function DiscoverScreen() {
               search={search}
               onSearchChange={setSearch}
               activeFilter={activeFilter}
-              onFilterChange={setActiveFilter}
+              onFilterChange={chooseCategory}
               filters={availableFilters}
+              subFilters={skillsInCategory}
+              activeSubFilter={activeSkill}
+              onSubFilterChange={setActiveSkill}
             />
           }
           contentContainerStyle={styles.listContent}
@@ -104,7 +113,7 @@ export default function DiscoverScreen() {
             ) : (
               <View style={styles.empty}>
                 <Text style={[styles.emptyText, styles.centerText]}>
-                  {`No experts found for "${search || activeFilter}"`}
+                  {`No experts found for "${search || activeSkill || activeFilter}"`}
                 </Text>
                 <Text style={[styles.emptyHint, styles.centerText]}>Try a different search term or filter</Text>
               </View>

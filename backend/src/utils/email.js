@@ -52,6 +52,50 @@ const templates = {
     subject: `How was your session with ${expertName}?`,
     text: `Hi ${userFirstName},\n\n${expertName} has marked your session as complete. We'd love to hear what you learned. It takes a minute, and it helps others find the right person.\n\nOpen the G(Old) app and go to Requests to share your thoughts.\n\n${SIGN_OFF}`,
   }),
+  newRequest: ({ expertFirstName, userName, headline }) => ({
+    subject: `New session request from ${userName}`,
+    text: `Hi ${expertFirstName},
+
+${userName} would like a session with you:
+
+"${headline}"
+
+Please open the G(Old) app to accept or decline. Requests expire after 48 hours, so a quick reply helps.
+
+${SIGN_OFF}`,
+  }),
+  requestAccepted: ({ userFirstName, expertName }) => ({
+    subject: `${expertName} accepted your request`,
+    text: `Hi ${userFirstName},
+
+Good news: ${expertName} has accepted your session request. You can now message each other in the G(Old) app to agree a time.
+
+${SIGN_OFF}`,
+  }),
+  requestDeclined: ({ userFirstName, expertName }) => ({
+    subject: `About your request to ${expertName}`,
+    text: `Hi ${userFirstName},
+
+${expertName} isn't able to take on your request this time. There are other experienced people on G(Old) who may be a great fit. Open the app to find another expert.
+
+${SIGN_OFF}`,
+  }),
+  requestExpired: ({ userFirstName, expertName }) => ({
+    subject: "Your session request has expired",
+    text: `Hi ${userFirstName},
+
+${expertName} wasn't able to respond within 48 hours, so your request has expired. You can send a request to another expert in the G(Old) app.
+
+${SIGN_OFF}`,
+  }),
+  unreadMessages: ({ firstName, senderName, count }) => ({
+    subject: `You have ${count === 1 ? "a new message" : `${count} new messages`} from ${senderName}`,
+    text: `Hi ${firstName},
+
+${senderName} sent you ${count === 1 ? "a message" : `${count} messages`} on G(Old). Open the app to read and reply.
+
+${SIGN_OFF}`,
+  }),
   applicationApproved: ({ firstName }) => ({
     subject: "Welcome to G(Old): your profile is live",
     text: `Hi ${firstName},\n\nGood news: our team has reviewed and approved your expert profile. People can now find you and request sessions.\n\nA good next step is to set your availability in the app.\n\n${SIGN_OFF}`,

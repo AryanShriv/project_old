@@ -50,8 +50,7 @@ export default function AdminTabsLayout() {
         }}
       />
       <Tabs.Screen
-        // Legacy route file name; this is the Experts tab. See "Naming" in backend/README.md.
-        name="freelancers"
+        name="experts"
         options={{
           title: "Experts",
           tabBarIcon: ({ color, size }) => (

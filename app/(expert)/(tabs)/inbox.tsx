@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View, Modal, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 import { EmptyState } from "@/src/components/EmptyState/EmptyState";
 import { useAuth } from "@/src/context/AuthContext";
@@ -15,6 +16,22 @@ export default function ExpertInboxScreen() {
   const { user } = useAuth();
   const expertPersonaId = user?.managedExpertId ?? "";
   const { requests, updateRequestStatus, refreshRequests } = useRequests();
+
+  // Every action confirms on screen, and failures say so (PRD 5.2)
+  const respond = async (item: Request, status: "accepted" | "rejected" | "completed") => {
+    const name = item.userName?.split(" ")[0] || "They";
+    try {
+      await updateRequestStatus(item.id, status);
+      const messages = {
+        accepted: { text1: "Request accepted", text2: `${name} can now message you in Messages.` },
+        rejected: { text1: "Request declined", text2: `We'll let ${name} know.` },
+        completed: { text1: "Session marked complete", text2: `We've asked ${name} to share what they learned.` },
+      };
+      Toast.show({ type: "success", ...messages[status] });
+    } catch (error) {
+      Toast.show({ type: "error", text1: "That didn't go through", text2: (error as Error).message || "Please try again." });
+    }
+  };
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const { colors } = useTheme();
@@ -76,13 +93,13 @@ export default function ExpertInboxScreen() {
                 <View style={styles.actions}>
                   <Pressable
                     style={[styles.btn, styles.btnGhost, styles.btnFirst, { borderColor: colors.border, backgroundColor: colors.surface }]}
-                    onPress={() => updateRequestStatus(item.id, "rejected")}
+                    onPress={() => respond(item, "rejected")}
                   >
                     <Text style={[styles.btnGhostText, { color: colors.textSecondary }]}>Decline</Text>
                   </Pressable>
                   <Pressable
                     style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.primary }]}
-                    onPress={() => updateRequestStatus(item.id, "accepted")}
+                    onPress={() => respond(item, "accepted")}
                   >
                     <Text style={styles.btnPrimaryText}>Accept</Text>
                   </Pressable>
@@ -92,7 +109,7 @@ export default function ExpertInboxScreen() {
                 <View style={styles.actions}>
                   <Pressable
                     style={[styles.btn, styles.btnPrimary, { backgroundColor: colors.primary, width: "100%" }]}
-                    onPress={() => updateRequestStatus(item.id, "completed")}
+                    onPress={() => respond(item, "completed")}
                   >
                     <Text style={styles.btnPrimaryText}>Mark as Completed</Text>
                   </Pressable>
@@ -160,7 +177,7 @@ export default function ExpertInboxScreen() {
                 <Pressable
                   style={[styles.btn, styles.btnGhost, { flex: 1, borderColor: colors.border }]}
                   onPress={() => {
-                    updateRequestStatus(selectedRequest.id, "rejected");
+                    respond(selectedRequest, "rejected");
                     setSelectedRequest(null);
                   }}
                 >
@@ -169,7 +186,7 @@ export default function ExpertInboxScreen() {
                 <Pressable
                   style={[styles.btn, styles.btnPrimary, { flex: 1, backgroundColor: colors.primary }]}
                   onPress={() => {
-                    updateRequestStatus(selectedRequest.id, "accepted");
+                    respond(selectedRequest, "accepted");
                     setSelectedRequest(null);
                   }}
                 >
