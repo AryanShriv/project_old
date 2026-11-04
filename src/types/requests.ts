@@ -21,6 +21,8 @@ export type Request = {
     updatedAt?: string;
     respondedAt?: string;
     completedAt?: string;
+    /** Set once the user has reviewed this session; only one review per session */
+    reviewedAt?: string;
     /** Display name of the person who sent the request (shown to experts) */
     userName?: string;
 };
@@ -32,4 +34,7 @@ export type NewRequest = {
     description: string;
     sessionType: SessionType;
     timingPreference: TimingPreference;
+    /** Disclaimer ids the user ticked (PRD 4.6) and the version of the text they saw */
+    acknowledgedDisclaimers: string[];
+    disclaimerVersion: string;
 };

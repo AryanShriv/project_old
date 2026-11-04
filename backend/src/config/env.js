@@ -13,6 +13,9 @@ const env = {
   adminEmail: process.env.ADMIN_EMAIL || "",
   adminPassword: process.env.ADMIN_PASSWORD || "",
   adminName: process.env.ADMIN_NAME || "Admin",
+  // Transactional email (Resend). Without a key, emails are logged to the console.
+  resendApiKey: process.env.RESEND_API_KEY || "",
+  emailFrom: process.env.EMAIL_FROM || "G(Old) <hello@example.com>",
 };
 
 module.exports = env;

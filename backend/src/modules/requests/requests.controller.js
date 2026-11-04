@@ -4,6 +4,10 @@ const { sendSuccess, sendError } = require("../../utils/http");
 const Request = require("./request.model");
 const ExpertProfile = require("../experts/expert.model");
 const { expireRequest } = require("./requests.expiry");
+const User = require("../users/user.model");
+const { DISCLAIMER_VERSION, requiredDisclaimerIds } = require("../../constants/trust");
+const { sendPushToUser } = require("../../utils/push");
+const { sendEmail, templates } = require("../../utils/email");
 
 // PRD 3.5 payload: expertId, headline, description, sessionType, timingPreference.
 // projectTitle / userMessage / engagementType are still accepted from older app builds.
@@ -15,6 +19,9 @@ const createSchema = z
     description: z.string().trim().min(50).max(500).optional(),
     sessionType: z.enum(["remote", "onsite", "ongoing"]).optional(),
     timingPreference: z.enum(["asap", "week", "month", "flexible"]).optional(),
+    // PRD 4.6: disclaimer ids the user ticked, and the version of the text they saw
+    acknowledgedDisclaimers: z.array(z.string().trim().min(1)).max(20).optional().default([]),
+    disclaimerVersion: z.string().trim().optional().default(""),
 
     projectTitle: z.string().trim().min(3).max(160).optional(),
     userMessage: z.string().trim().min(10).max(500).optional(),
@@ -62,7 +69,7 @@ const createRequest = async (req, res) => {
     return sendError(res, "Invalid expertId", 400);
   }
 
-  const expert = await ExpertProfile.findById(expertId).select("_id profileStatus country");
+  const expert = await ExpertProfile.findById(expertId).select("_id profileStatus country domain categories skills");
   if (!expert) {
     return sendError(res, "Expert not found", 404);
   }
@@ -72,6 +79,14 @@ const createRequest = async (req, res) => {
   // On-site sessions are only offered in Canada
   if (sessionType === "onsite" && (expert.country || "").toLowerCase() !== "canada") {
     return sendError(res, "On-site sessions are only available with experts in Canada", 400);
+  }
+
+  // Every disclaimer that applies to this expert and session type must be acknowledged
+  const required = requiredDisclaimerIds(expert, sessionType);
+  const acknowledged = new Set(data.acknowledgedDisclaimers);
+  const missing = required.filter((id) => !acknowledged.has(id));
+  if (missing.length > 0 || data.disclaimerVersion !== DISCLAIMER_VERSION) {
+    return sendError(res, "Please read and acknowledge the notes before sending your request", 400, { missing });
   }
 
   const created = await Request.create({
@@ -85,6 +100,9 @@ const createRequest = async (req, res) => {
     projectTitle: headline,
     userMessage: description,
     engagementType: sessionType,
+    acknowledgedDisclaimers: required,
+    disclaimerVersion: DISCLAIMER_VERSION,
+    disclaimersAcknowledgedAt: new Date(),
     status: "pending",
   });
 
@@ -191,6 +209,10 @@ const updateRequestStatus = async (req, res) => {
   }
   await requestDoc.save();
 
+  if (nextStatus === "completed") {
+    await sendReviewPrompt(requestDoc);
+  }
+
   if (nextStatus === "accepted") {
     try {
       const Conversation = require("../chat/conversation.model");
@@ -225,6 +247,25 @@ const updateRequestStatus = async (req, res) => {
   }
 
   return sendSuccess(res, requestDoc, "Request status updated");
+};
+
+/** PRD 4.1: "How was your session with [Expert]?" by push and email, opening the review form. */
+const sendReviewPrompt = async (requestDoc) => {
+  const [expert, user] = await Promise.all([
+    ExpertProfile.findById(requestDoc.expertId).select("fullName").lean(),
+    User.findById(requestDoc.userId).select("email profile.fullName").lean(),
+  ]);
+  const expertName = expert?.fullName || "your expert";
+  const userFirstName = (user?.profile?.fullName || "").split(" ")[0] || "there";
+
+  await Promise.all([
+    sendPushToUser(requestDoc.userId, {
+      title: `How was your session with ${expertName}?`,
+      body: "Share what you learned. It takes a minute.",
+      data: { type: "review_prompt", requestId: requestDoc._id.toString() },
+    }),
+    sendEmail({ to: user?.email, ...templates.reviewPrompt({ userFirstName, expertName }) }),
+  ]);
 };
 
 module.exports = { createRequest, listRequests, updateRequestStatus };

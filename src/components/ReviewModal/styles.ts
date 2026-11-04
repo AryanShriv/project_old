@@ -1,6 +1,6 @@
-import { ThemeColors, brand } from "@/src/design-system/colors";
+import { ThemeColors } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
-import { spacing } from "@/src/design-system/spacing";
+import { minTapTarget, spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
 import { StyleSheet } from "react-native";
 
@@ -8,30 +8,35 @@ export const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: "rgba(0, 0, 0, 0.6)",
+      backgroundColor: colors.overlay,
       justifyContent: "flex-end",
     },
     container: {
       backgroundColor: colors.background,
       borderTopLeftRadius: radius.xl,
       borderTopRightRadius: radius.xl,
-      maxHeight: "90%",
+      maxHeight: "92%",
     },
     header: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
+      gap: spacing.sm,
       padding: spacing.md,
       paddingHorizontal: spacing.lg,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
     },
     title: {
-      ...typography.h3,
+      ...typography.h2,
       color: colors.textPrimary,
+      flex: 1,
     },
     closeButton: {
-      padding: spacing.xs,
+      width: minTapTarget,
+      height: minTapTarget,
+      alignItems: "center",
+      justifyContent: "center",
     },
     scroll: {
       padding: spacing.lg,
@@ -39,17 +44,13 @@ export const createStyles = (colors: ThemeColors) =>
     sectionTitle: {
       ...typography.h3,
       color: colors.textPrimary,
-      marginBottom: spacing.sm,
       marginTop: spacing.md,
+      marginBottom: spacing.xxs,
     },
-    starsContainer: {
-      flexDirection: "row",
-      justifyContent: "center",
-      gap: spacing.sm,
-      marginVertical: spacing.md,
-    },
-    starButton: {
-      padding: spacing.xs,
+    hint: {
+      ...typography.body,
+      color: colors.textMuted,
+      marginBottom: spacing.sm,
     },
     input: {
       ...typography.body,
@@ -59,25 +60,59 @@ export const createStyles = (colors: ThemeColors) =>
       borderRadius: radius.md,
       padding: spacing.md,
       backgroundColor: colors.surface,
-      minHeight: 100,
+      minHeight: 120,
       textAlignVertical: "top",
-      marginBottom: spacing.md,
     },
-    smallInput: {
-      minHeight: 50,
+    counter: {
+      ...typography.label,
+      color: colors.textMuted,
+      textAlign: "right",
+      marginTop: spacing.xxs,
     },
-    toggleRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      paddingVertical: spacing.sm,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.border,
-      marginTop: spacing.md,
+    counterWarn: {
+      color: colors.warning,
     },
-    toggleLabel: {
+    option: {
+      minHeight: 64,
+      justifyContent: "center",
+      padding: spacing.md,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      marginTop: spacing.xs,
+    },
+    optionSelected: {
+      backgroundColor: colors.primaryMuted,
+      borderColor: colors.primary,
+    },
+    optionLabel: {
       ...typography.bodyMedium,
       color: colors.textPrimary,
+    },
+    optionLabelSelected: {
+      color: colors.onPrimaryMuted,
+    },
+    optionHint: {
+      ...typography.label,
+      color: colors.textMuted,
+    },
+    choiceRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    choice: {
+      flex: 1,
+      flexDirection: "row",
+      gap: spacing.xs,
+      minHeight: 56,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
     },
     footer: {
       padding: spacing.lg,
@@ -86,17 +121,20 @@ export const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     submitButton: {
+      minHeight: 52,
       backgroundColor: colors.primary,
-      padding: spacing.md,
       borderRadius: radius.md,
       alignItems: "center",
+      justifyContent: "center",
     },
     submitButtonDisabled: {
-      opacity: 0.5,
+      backgroundColor: colors.border,
     },
     submitText: {
-      ...typography.bodyMedium,
-      color: brand.onPrimary,
-      fontWeight: "600",
+      ...typography.button,
+      color: colors.onPrimary,
+    },
+    submitTextDisabled: {
+      color: colors.textMuted,
     },
   });

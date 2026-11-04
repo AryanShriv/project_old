@@ -12,6 +12,9 @@ export type Expert = {
 
     // New fields for G(Old)
     domain?: string;
+    categories?: string[];
+    /** Session modes offered; normalised from the legacy engagementType for older profiles */
+    engagementTypes: ("remote" | "onsite")[];
     engagementType?: "remote" | "onsite" | "both";
     pricingCAD?: number;
     pricingINR?: number;
@@ -20,16 +23,21 @@ export type Expert = {
     country?: string;
     city?: string;
     availabilityRadius?: number;
-    
+
     certifications?: {
         type: string;
         number: string;
-        body: string;
+        issuingBody: string;
         verified: boolean;
     }[];
-    
+    insuranceDeclared?: boolean;
+    founderBadge?: boolean;
+
     recommendedCount?: number;
     reviewCount?: number;
+    /** null until the first visible review */
+    recommendPercentage: number | null;
+    styleBreakdown: { structured: number; conversational: number; hands_on: number };
 
     approvalStatus?: "pending" | "approved" | "rejected";
     /** True only after admin approval */

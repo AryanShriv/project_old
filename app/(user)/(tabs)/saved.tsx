@@ -55,7 +55,7 @@ export default function SavedScreen() {
         <EmptyState
           icon="bookmark-outline"
           title="No saved experts yet"
-          subtitle="Tap the star on a profile card to save experts you want to revisit."
+          subtitle="Tap the bookmark on a profile to save experts you want to come back to."
         />
       </SafeAreaView>
     );

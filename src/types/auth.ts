@@ -9,6 +9,8 @@ export type AuthUser = {
   /** Admin review outcome of the expert application (expert role only) */
   approvalStatus?: "pending" | "approved" | "rejected";
   rejectionReason?: string;
+  /** How many times a rejected application was resubmitted; only one is allowed */
+  resubmissionCount?: number;
   /** Extended profile fields */
   profile?: {
     fullName?: string;
@@ -19,7 +21,7 @@ export type AuthUser = {
     website?: string;
     location?: string;
     phone?: string;
-    
+
     // Expert-specific
     yearsExperience?: number;
     domain?: string;
@@ -51,6 +53,13 @@ export type AuthRoleIntent = "user" | "expert" | "admin";
 export type ExpertApplicationStatus = "pending" | "approved" | "rejected";
 export type ExpertAccountStatus = "active" | "suspended";
 
+export type VerificationChecklist = {
+  idVerified: boolean;
+  certificateVerified: boolean;
+  insuranceConfirmed: boolean;
+  linkedinVerified: boolean;
+};
+
 export type ExpertApplication = {
   id: string;
   email: string;
@@ -60,13 +69,55 @@ export type ExpertApplication = {
   status: ExpertApplicationStatus;
   createdAt: string;
   reviewedAt?: string;
+  isResubmission?: boolean;
+  /** What the expert told us at signup, for the admin checklist */
+  details?: {
+    country?: string;
+    city?: string;
+    domain?: string;
+    headline?: string;
+    yearsExperience?: number;
+    engagementTypes?: string[];
+    linkedinUrl?: string;
+    insuranceDeclared?: boolean;
+    certifications?: { type: string; number: string; issuingBody: string }[];
+  };
+  /** Checklist items the backend requires before approval */
+  requirements?: VerificationChecklist;
+};
+
+/** Registration payload. Each acknowledgement is stored with a timestamp (PRD 4.5). */
+export type RegisterInput = {
+  email: string;
+  password: string;
+  name: string;
+  role: AuthRoleIntent;
+  acceptedTerms: boolean;
+  acknowledgedPlatformOnly?: boolean;
+  acknowledgedOnsiteSafety?: boolean;
+  acceptedExpertCompliance?: boolean;
+  acknowledgedIndependentContractor?: boolean;
+  acknowledgedInsurance?: boolean;
+  expertProfile?: {
+    country: "Canada" | "India";
+    city: string;
+    domain: string;
+    engagementTypes: ("remote" | "onsite")[];
+    linkedinUrl: string;
+    insuranceDeclared: boolean;
+    certification?: { type: string; number: string; issuingBody: string };
+  };
 };
 
 export type AuditAction =
+  | "application_submitted"
   | "application_approved"
   | "application_rejected"
   | "expert_suspended"
-  | "expert_reactivated";
+  | "expert_reactivated"
+  | "review_hidden"
+  | "review_unhidden"
+  | "other";
 
 export type AuditLogEntry = {
   id: string;

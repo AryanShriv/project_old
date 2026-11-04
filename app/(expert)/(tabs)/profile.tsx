@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import type { Href } from "expo-router";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -17,6 +16,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
+import { Avatar } from "@/src/components/Avatar/Avatar";
+import { isRegulatedTrade } from "@/src/constants/trust";
 import { useAuth } from "@/src/context/AuthContext";
 import { useExperts } from "@/src/context/ExpertsContext";
 import { useTheme } from "@/src/context/ThemeContext";
@@ -24,6 +25,33 @@ import { ThemeColors, brand } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { minTapTarget, spacing } from "@/src/design-system/spacing";
 import { apiRequest } from "@/src/services/apiClient";
+import { mapApiExpertToUi } from "@/src/services/expertsAdapter";
+import type { Expert } from "@/src/types/expert";
+
+type SessionMode = "remote" | "onsite";
+
+const toForm = (me?: Expert) => {
+  const cert = me?.certifications?.[0];
+  const isIndia = me?.country === "India";
+  return {
+    fullName: me?.name ?? "",
+    headline: me?.title === "Expert" ? "" : me?.title ?? "",
+    bio: me?.tagline ?? "",
+    yearsExperience: me?.yearsExperience ? parseInt(me.yearsExperience) : 0,
+    skills: me?.skills?.join(", ") ?? "",
+    experience: me?.experience ?? [],
+    country: (me?.country === "India" ? "India" : "Canada") as "Canada" | "India",
+    city: me?.city ?? "",
+    engagementTypes: (me?.engagementTypes?.length ? me.engagementTypes : ["remote"]) as SessionMode[],
+    price: (isIndia ? me?.pricingINR : me?.pricingCAD) ?? 0,
+    languages: me?.languages?.join(", ") ?? "",
+    linkedinUrl: me?.linkedinUrl ?? "",
+    certType: cert?.type ?? "",
+    certNumber: cert?.number ?? "",
+    certBody: cert?.issuingBody ?? "",
+    insuranceDeclared: Boolean(me?.insuranceDeclared),
+  };
+};
 
 export default function ExpertProfileTabScreen() {
   const { user, logout } = useAuth();
@@ -32,50 +60,77 @@ export default function ExpertProfileTabScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const personaId = user?.managedExpertId;
-  const me = experts.find((f) => f.id === personaId);
+  const listed = experts.find((f) => f.id === personaId);
+
+  // Pending and rejected experts are not in the public list, so load the profile as its owner
+  const [own, setOwn] = useState<Expert | undefined>(undefined);
+  const loadOwn = useCallback(
+    () =>
+      personaId
+        ? apiRequest<Parameters<typeof mapApiExpertToUi>[0]>(`/experts/${personaId}`, { auth: true })
+            .then((data) => setOwn(mapApiExpertToUi(data)))
+            .catch(() => setOwn(undefined))
+        : Promise.resolve(),
+    [personaId]
+  );
+  useEffect(() => {
+    loadOwn();
+  }, [loadOwn]);
+  const me = own ?? listed;
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Form state — initialize from current profile
-  const [formData, setFormData] = useState({
-    fullName: me?.name ?? "",
-    headline: me?.title ?? "",
-    bio: me?.tagline ?? "",
-    hourlyRate: me?.rate ? parseInt(me.rate.replace(/\D/g, "")) : 0,
-    location: "",
-    yearsExperience: me?.yearsExperience ? parseInt(me.yearsExperience) : 0,
-    skills: me?.skills?.join(", ") ?? "",
-    experience: me?.experience ?? [],
-  });
+  const [formData, setFormData] = useState(() => toForm(me));
 
   // Track dynamic changes when 'me' object changes/loads
   useEffect(() => {
     if (me) {
-      setFormData({
-        fullName: me.name ?? "",
-        headline: me.title ?? "",
-        bio: me.tagline ?? "",
-        hourlyRate: me.rate ? parseInt(me.rate.replace(/\D/g, "")) : 0,
-        location: "",
-        yearsExperience: me.yearsExperience ? parseInt(me.yearsExperience) : 0,
-        skills: me.skills?.join(", ") ?? "",
-        experience: me.experience ?? [],
-      });
+      setFormData(toForm(me));
     }
   }, [me]);
+
+  const regulated = me ? isRegulatedTrade(me) : false;
+  const offersOnsite = formData.engagementTypes.includes("onsite");
+  const toggleMode = (mode: SessionMode) => {
+    const next = formData.engagementTypes.includes(mode)
+      ? formData.engagementTypes.filter((m) => m !== mode)
+      : [...formData.engagementTypes, mode];
+    if (next.length > 0) setFormData({ ...formData, engagementTypes: next });
+  };
 
   const handleSave = async () => {
     if (!personaId) return;
 
+    if (regulated && (!formData.certType.trim() || !formData.certNumber.trim() || !formData.certBody.trim())) {
+      Toast.show({ type: "error", text1: "Certificate needed", text2: "Regulated trades need the certificate type, number and issuing body." });
+      return;
+    }
+    if (offersOnsite && !formData.insuranceDeclared) {
+      Toast.show({ type: "error", text1: "Insurance needed", text2: "Please confirm your liability insurance to offer on-site sessions." });
+      return;
+    }
+
     setIsSaving(true);
     try {
+      const price = Math.max(0, formData.price);
+      const cert = { type: formData.certType.trim(), number: formData.certNumber.trim(), issuingBody: formData.certBody.trim() };
       const payload = {
         fullName: formData.fullName.trim(),
         headline: formData.headline.trim(),
         bio: formData.bio.trim(),
-        hourlyRate: Math.max(0, formData.hourlyRate),
-        location: formData.location.trim(),
+        country: formData.country,
+        city: formData.city.trim(),
+        location: [formData.city.trim(), formData.country].filter(Boolean).join(", "),
+        engagementTypes: formData.country === "India" ? (["remote"] as SessionMode[]) : formData.engagementTypes,
+        insuranceDeclared: offersOnsite && formData.insuranceDeclared,
+        // Price per session in the expert's currency; hourlyRate is the legacy mirror used by filters
+        ...(formData.country === "India" ? { pricingINR: price } : { pricingCAD: price }),
+        hourlyRate: price,
+        linkedinUrl: formData.linkedinUrl.trim(),
+        languages: formData.languages.split(",").map((s) => s.trim()).filter(Boolean),
+        ...(cert.type && cert.number && cert.issuingBody ? { certifications: [cert] } : {}),
         yearsExperience: Math.max(0, formData.yearsExperience),
         skills: formData.skills
           .split(",")
@@ -96,7 +151,7 @@ export default function ExpertProfileTabScreen() {
       });
 
       // Refresh experts list to get updated data
-      await refresh();
+      await Promise.all([refresh(), loadOwn()]);
 
       Toast.show({
         type: "success",
@@ -152,15 +207,13 @@ export default function ExpertProfileTabScreen() {
 
         {me ? (
           <View style={styles.hero}>
-            <Image source={{ uri: me.avatar }} style={styles.avatar} />
+            <Avatar uri={me.avatar} name={me.name} size={88} verified={me.verified} />
             <Text style={styles.name}>{me.name}</Text>
             <Text style={styles.sub}>{me.title}</Text>
             <Text style={styles.tag}>{me.tagline}</Text>
           </View>
         ) : (
-          <Text style={styles.missing}>
-            Your account is not linked to a demo profile.
-          </Text>
+          <Text style={styles.missing}>Loading your profile…</Text>
         )}
 
         {isEditing ? (
@@ -181,7 +234,7 @@ export default function ExpertProfileTabScreen() {
             <Text style={styles.label}>Headline</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Senior React Developer"
+              placeholder="e.g. Former CFO, 30 years in manufacturing finance"
               placeholderTextColor={colors.textMuted}
               value={formData.headline}
               onChangeText={(text) =>
@@ -192,37 +245,132 @@ export default function ExpertProfileTabScreen() {
             <Text style={styles.label}>Bio</Text>
             <TextInput
               style={[styles.input, styles.textarea]}
-              placeholder="Tell users about yourself"
+              placeholder="What can you help people with? Write it the way you would say it."
               placeholderTextColor={colors.textMuted}
               value={formData.bio}
               onChangeText={(text) => setFormData({ ...formData, bio: text })}
               multiline
             />
 
-            <Text style={styles.label}>Hourly Rate ($)</Text>
+            <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>Sessions and credentials</Text>
+
+            <Text style={styles.label}>Country</Text>
+            <View style={styles.chips}>
+              {(["Canada", "India"] as const).map((option) => (
+                <Pressable
+                  key={option}
+                  style={[styles.chip, formData.country === option && styles.chipOn]}
+                  onPress={() => setFormData({ ...formData, country: option })}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: formData.country === option }}
+                >
+                  <Text style={[styles.chipText, formData.country === option && styles.chipTextOn]}>{option}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.label}>City</Text>
             <TextInput
               style={styles.input}
-              placeholder="50"
+              placeholder={formData.country === "India" ? "e.g. Pune" : "e.g. Toronto"}
               placeholderTextColor={colors.textMuted}
-              value={formData.hourlyRate.toString()}
-              onChangeText={(text) =>
-                setFormData({
-                  ...formData,
-                  hourlyRate: parseInt(text) || 0,
-                })
-              }
+              value={formData.city}
+              onChangeText={(text) => setFormData({ ...formData, city: text })}
+            />
+
+            <Text style={styles.label}>Session types</Text>
+            <View style={styles.chips}>
+              {(formData.country === "India" ? (["remote"] as SessionMode[]) : (["remote", "onsite"] as SessionMode[])).map((mode) => {
+                const selected = formData.engagementTypes.includes(mode);
+                return (
+                  <Pressable
+                    key={mode}
+                    style={[styles.chip, selected && styles.chipOn]}
+                    onPress={() => toggleMode(mode)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                  >
+                    <Text style={[styles.chipText, selected && styles.chipTextOn]}>{mode === "remote" ? "Remote" : "On-site"}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {offersOnsite && formData.country === "Canada" && (
+              <Pressable
+                style={styles.checkRow}
+                onPress={() => setFormData({ ...formData, insuranceDeclared: !formData.insuranceDeclared })}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: formData.insuranceDeclared }}
+              >
+                <View style={[styles.checkbox, formData.insuranceDeclared && styles.checkboxOn]}>
+                  {formData.insuranceDeclared && <Ionicons name="checkmark" size={18} color={colors.onPrimary} />}
+                </View>
+                <Text style={styles.checkLabel}>I hold valid liability insurance that covers on-site work.</Text>
+              </Pressable>
+            )}
+
+            <Text style={styles.label}>
+              Price per session ({formData.country === "India" ? "₹" : "CA$"})
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder={formData.country === "India" ? "2500" : "120"}
+              placeholderTextColor={colors.textMuted}
+              value={formData.price ? formData.price.toString() : ""}
+              onChangeText={(text) => setFormData({ ...formData, price: parseInt(text.replace(/\D/g, "")) || 0 })}
               keyboardType="number-pad"
             />
 
-            <Text style={styles.label}>Location</Text>
+            {regulated && (
+              <>
+                <Text style={styles.label}>Certificate type</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. 309A Construction and Maintenance Electrician"
+                  placeholderTextColor={colors.textMuted}
+                  value={formData.certType}
+                  onChangeText={(text) => setFormData({ ...formData, certType: text })}
+                />
+                <Text style={styles.label}>Certificate number</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="As shown on your certificate"
+                  placeholderTextColor={colors.textMuted}
+                  value={formData.certNumber}
+                  onChangeText={(text) => setFormData({ ...formData, certNumber: text })}
+                  autoCapitalize="characters"
+                />
+                <Text style={styles.label}>Issuing body</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. Skilled Trades Ontario, ESA, TSSA"
+                  placeholderTextColor={colors.textMuted}
+                  value={formData.certBody}
+                  onChangeText={(text) => setFormData({ ...formData, certBody: text })}
+                />
+                <Text style={styles.hint}>Changing your certificate means our team checks it again before it shows as verified.</Text>
+              </>
+            )}
+
+            <Text style={styles.label}>LinkedIn profile (optional)</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. San Francisco, CA"
+              placeholder="https://www.linkedin.com/in/your-name"
               placeholderTextColor={colors.textMuted}
-              value={formData.location}
-              onChangeText={(text) =>
-                setFormData({ ...formData, location: text })
-              }
+              value={formData.linkedinUrl}
+              onChangeText={(text) => setFormData({ ...formData, linkedinUrl: text })}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+
+            <Text style={styles.label}>Languages (comma-separated)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="English, Hindi"
+              placeholderTextColor={colors.textMuted}
+              value={formData.languages}
+              onChangeText={(text) => setFormData({ ...formData, languages: text })}
             />
 
             <Text style={styles.label}>Years of Experience</Text>
@@ -240,10 +388,10 @@ export default function ExpertProfileTabScreen() {
               keyboardType="number-pad"
             />
 
-            <Text style={styles.label}>Skills (comma-separated)</Text>
+            <Text style={styles.label}>What people can ask you about (comma-separated)</Text>
             <TextInput
               style={[styles.input, styles.textarea, { height: 60 }]}
-              placeholder="React, TypeScript, Node.js"
+              placeholder="Cash flow, Investor pitch, Pricing strategy"
               placeholderTextColor={colors.textMuted}
               value={formData.skills}
               onChangeText={(text) =>
@@ -268,7 +416,7 @@ export default function ExpertProfileTabScreen() {
                     <Ionicons name="trash-outline" size={20} color={colors.error} />
                   </Pressable>
                 </View>
-                
+
                 <TextInput
                   style={[styles.input, styles.smallInput]}
                   placeholder="Years (e.g. 2021 - Present)"
@@ -538,6 +686,66 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 16,
       color: colors.textPrimary,
       backgroundColor: colors.background,
+    },
+    chips: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.xs,
+      marginBottom: spacing.sm,
+    },
+    chip: {
+      minHeight: minTapTarget,
+      justifyContent: "center",
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.full,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    chipOn: {
+      backgroundColor: colors.primaryMuted,
+      borderColor: colors.primary,
+    },
+    chipText: {
+      fontSize: 16,
+      fontWeight: "500",
+      color: colors.textSecondary,
+    },
+    chipTextOn: {
+      color: colors.onPrimaryMuted,
+    },
+    checkRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: spacing.sm,
+      minHeight: minTapTarget,
+      marginBottom: spacing.sm,
+    },
+    checkbox: {
+      width: 28,
+      height: 28,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+    },
+    checkboxOn: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    checkLabel: {
+      flex: 1,
+      fontSize: 16,
+      lineHeight: 24,
+      color: colors.textSecondary,
+    },
+    hint: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.textMuted,
+      marginBottom: spacing.sm,
     },
     textarea: {
       height: 100,

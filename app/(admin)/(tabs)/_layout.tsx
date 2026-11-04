@@ -60,6 +60,15 @@ export default function AdminTabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="reviews"
+        options={{
+          title: "Reviews",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbox-ellipses" size={size} color={color as string} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="audit"
         options={{
           title: "Audit",

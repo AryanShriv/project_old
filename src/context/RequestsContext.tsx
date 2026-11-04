@@ -56,6 +56,7 @@ export const RequestsProvider = ({
         updatedAt: item.updatedAt,
         respondedAt: item.respondedAt,
         completedAt: item.completedAt,
+        reviewedAt: item.reviewedAt,
         userName: item.userName,
       }));
       setRequests(mapped);

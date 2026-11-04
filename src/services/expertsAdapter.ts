@@ -11,9 +11,11 @@ type ApiExpert = {
   skills?: string[];
   portfolio?: Array<{ _id?: string; title?: string; description?: string; link?: string }>;
   experience?: Array<{ _id?: string; year?: string; role?: string; company?: string; description?: string }>;
-  
+
   // New G(Old) fields
   domain?: string;
+  categories?: string[];
+  engagementTypes?: ("remote" | "onsite")[];
   engagementType?: "remote" | "onsite" | "both";
   pricingCAD?: number;
   pricingINR?: number;
@@ -22,7 +24,11 @@ type ApiExpert = {
   country?: string;
   city?: string;
   availabilityRadius?: number;
-  certifications?: Array<{ type: string; number: string; body: string; verified: boolean }>;
+  certifications?: { type: string; number: string; issuingBody?: string; body?: string; verified: boolean }[];
+  insuranceDeclared?: boolean;
+  founderBadge?: boolean;
+  recommendPercentage?: number | null;
+  styleBreakdown?: { structured?: number; conversational?: number; hands_on?: number };
   approvalStatus?: "pending" | "approved" | "rejected";
   rejectionReason?: string;
   approvedAt?: string;
@@ -41,6 +47,12 @@ const formatSessionPrice = (item: ApiExpert): string => {
   return item.hourlyRate ? `$${item.hourlyRate}` : "";
 };
 
+const engagementTypesOf = (item: ApiExpert): ("remote" | "onsite")[] => {
+  if (item.engagementTypes?.length) return item.engagementTypes;
+  if (item.engagementType === "both") return ["remote", "onsite"];
+  return [item.engagementType === "onsite" ? "onsite" : "remote"];
+};
+
 export const mapApiExpertToUi = (item: ApiExpert): Expert => ({
   id: item._id,
   name: item.fullName,
@@ -52,9 +64,11 @@ export const mapApiExpertToUi = (item: ApiExpert): Expert => ({
   // Empty when there is no photo: <Avatar> renders initials instead of calling an external service
   avatar: item.avatarUrl || "",
   skills: item.skills ?? [],
-  
+
   // Map new fields
   domain: item.domain,
+  categories: item.categories ?? [],
+  engagementTypes: engagementTypesOf(item),
   engagementType: item.engagementType,
   pricingCAD: item.pricingCAD,
   pricingINR: item.pricingINR,
@@ -63,7 +77,14 @@ export const mapApiExpertToUi = (item: ApiExpert): Expert => ({
   country: item.country,
   city: item.city,
   availabilityRadius: item.availabilityRadius,
-  certifications: item.certifications,
+  certifications: (item.certifications ?? []).map((c) => ({
+    type: c.type,
+    number: c.number,
+    issuingBody: c.issuingBody || c.body || "",
+    verified: c.verified,
+  })),
+  insuranceDeclared: item.insuranceDeclared,
+  founderBadge: item.founderBadge,
   approvalStatus: item.approvalStatus,
   // The Verified badge is only earned through admin approval (PRD 4.4)
   verified: item.approvalStatus === "approved",
@@ -72,7 +93,13 @@ export const mapApiExpertToUi = (item: ApiExpert): Expert => ({
   adminNotes: item.adminNotes,
   reviewCount: item.reviewCount ?? 0,
   recommendedCount: item.recommendedCount ?? 0,
-  
+  recommendPercentage: item.recommendPercentage ?? null,
+  styleBreakdown: {
+    structured: item.styleBreakdown?.structured ?? 0,
+    conversational: item.styleBreakdown?.conversational ?? 0,
+    hands_on: item.styleBreakdown?.hands_on ?? 0,
+  },
+
   experience: (item.experience ?? []).map((exp, index) => ({
     id: exp._id || `exp-${index}`,
     year: exp.year || "",

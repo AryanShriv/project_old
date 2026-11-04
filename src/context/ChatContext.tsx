@@ -1,14 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { io, Socket } from "socket.io-client";
-import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ACCESS_TOKEN_KEY, refreshAccessToken } from "../services/apiClient";
+import { ACCESS_TOKEN_KEY, API_ORIGIN, refreshAccessToken } from "../services/apiClient";
 import { getConversations, getMessages, markAsRead as markAsReadApi } from "../services/chatApi";
 import { Conversation, Message } from "../types/chat";
 import { useAuth } from "./AuthContext";
 
-const API_BASE = process.env.EXPO_PUBLIC_SOCKET_URL
-  || (__DEV__ ? (Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://localhost:4000') : 'https://project-old.onrender.com');
+// The socket lives on the same server as the API unless .env says otherwise
+const API_BASE = process.env.EXPO_PUBLIC_SOCKET_URL || API_ORIGIN;
 
 type ChatContextType = {
   conversations: Conversation[];

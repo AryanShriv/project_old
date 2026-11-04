@@ -1,5 +1,5 @@
 import type { Href } from "expo-router";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
     FlatList,
@@ -32,6 +32,16 @@ export default function UserRequestsScreen() {
   const { colors } = useTheme();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRequestForReview, setSelectedRequestForReview] = useState<Request | null>(null);
+  // A review-prompt notification opens this tab with ?review=<requestId> (PRD 4.1)
+  const { review: reviewParam } = useLocalSearchParams<{ review?: string }>();
+  const promptedRequest = reviewParam
+    ? requests.find((r) => r.id === reviewParam && r.status === "completed" && !r.reviewedAt)
+    : undefined;
+  const reviewing = selectedRequestForReview ?? promptedRequest ?? null;
+  const closeReview = () => {
+    setSelectedRequestForReview(null);
+    if (reviewParam) router.setParams({ review: undefined });
+  };
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleRefresh = async () => {
@@ -115,12 +125,16 @@ export default function UserRequestsScreen() {
               {expert?.title ? (
                 <Text style={styles.meta}>{expert.title}</Text>
               ) : null}
-              {(item.status === "completed") && (
+              {/* Reviews come only from completed sessions, once each (PRD 4.1) */}
+              {item.status === "completed" && item.reviewedAt && (
+                <Text style={[styles.meta, { marginTop: 12 }]}>Thank you, you reviewed this session.</Text>
+              )}
+              {item.status === "completed" && !item.reviewedAt && (
                 <Pressable
                   style={[styles.btn, styles.btnPrimary, { marginTop: 12 }]}
                   onPress={() => setSelectedRequestForReview(item)}
                 >
-                  <Text style={styles.btnPrimaryText}>Write a Review</Text>
+                  <Text style={styles.btnPrimaryText}>Review this session</Text>
                 </Pressable>
               )}
             </View>
@@ -137,12 +151,13 @@ export default function UserRequestsScreen() {
         }
       />
 
-      {selectedRequestForReview && (
+      {reviewing && (
         <ReviewModal
-          visible={!!selectedRequestForReview}
-          expertId={selectedRequestForReview.expertId}
-          requestId={selectedRequestForReview.id}
-          onClose={() => setSelectedRequestForReview(null)}
+          visible
+          expertId={reviewing.expertId}
+          expertName={getExpert(reviewing.expertId)?.name}
+          requestId={reviewing.id}
+          onClose={closeReview}
           onSuccess={() => {
             refreshRequests();
           }}

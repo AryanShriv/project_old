@@ -9,7 +9,7 @@ const requestSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    
+
     // Request a Session fields (PRD 3.5). New code reads and writes these.
     headline: { type: String, trim: true, default: "" }, // "What do you need help with?"
     description: { type: String, trim: true, default: "" }, // "Tell us more about your situation"
@@ -33,23 +33,29 @@ const requestSchema = new mongoose.Schema(
     budget: { type: Number, min: 0, default: 0 },
 
     aiSummary: { type: String, trim: true, default: "" }, // Hook for a future AI problem translator
-    timingPreference: { 
-      type: String, 
-      enum: ["asap", "week", "month", "flexible", "this_week", "this_month"], 
-      default: "flexible" 
+    timingPreference: {
+      type: String,
+      enum: ["asap", "week", "month", "flexible", "this_week", "this_month"],
+      default: "flexible"
     },
-    
+
     status: {
       type: String,
       enum: ["pending", "accepted", "rejected", "cancelled", "completed", "expired"],
       default: "pending",
       index: true,
     },
-    
+
     // Auto-expiry (48hr)
     expiresAt: { type: Date, index: true },
     respondedAt: { type: Date },
     completedAt: { type: Date },
+    reviewedAt: { type: Date }, // Set when the user reviews the session; one review per session
+
+    // Disclaimers the user acknowledged before sending (PRD 4.6), kept as a legal record
+    acknowledgedDisclaimers: [{ type: String, trim: true }],
+    disclaimerVersion: { type: String, trim: true, default: "" },
+    disclaimersAcknowledgedAt: { type: Date },
   },
   { timestamps: true, versionKey: false }
 );

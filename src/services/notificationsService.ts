@@ -129,3 +129,35 @@ export async function configureNotificationHandler(): Promise<void> {
     // Silently fail if notifications can't be configured.
   }
 }
+
+export type NotificationData = { type?: string; requestId?: string };
+
+/**
+ * Calls `onOpen` with the notification's data whenever the user taps a notification,
+ * including the one that launched the app from a cold start. Returns an unsubscribe function.
+ */
+export function subscribeToNotificationTaps(onOpen: (data: NotificationData) => void): () => void {
+  if (Platform.OS === "web") return () => {};
+  if (Platform.OS === "android" && isExpoGo()) return () => {};
+
+  let subscription: { remove: () => void } | null = null;
+  let cancelled = false;
+
+  getNotificationsModule()
+    .then(async (Notifications) => {
+      if (cancelled) return;
+      const last = await Notifications.getLastNotificationResponseAsync();
+      if (last) onOpen((last.notification.request.content.data ?? {}) as NotificationData);
+      subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+        onOpen((response.notification.request.content.data ?? {}) as NotificationData);
+      });
+    })
+    .catch(() => {
+      // Notifications unavailable on this device; nothing to subscribe to.
+    });
+
+  return () => {
+    cancelled = true;
+    subscription?.remove();
+  };
+}

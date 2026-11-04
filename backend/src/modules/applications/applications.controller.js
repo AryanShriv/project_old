@@ -4,6 +4,15 @@ const Application = require("./application.model");
 const ExpertProfile = require("../experts/expert.model");
 const User = require("../users/user.model");
 const AuditLog = require("../admin/audit-log.model");
+const { isRegulatedTrade } = require("../../constants/trust");
+
+const MAX_RESUBMISSIONS = 1;
+
+/** True when the profile has at least one certificate with type, number and issuing body. */
+const hasCompleteCertificate = (profile) =>
+  (profile.certifications || []).some(
+    (c) => c.type?.trim() && c.number?.trim() && (c.issuingBody || c.body || "").trim()
+  );
 
 const createApplicationSchema = z.object({
   headline: z.string().trim().max(120).optional(),
@@ -41,12 +50,28 @@ const createExpertApplication = async (req, res) => {
 
   const existingPending = await Application.findOne({ applicantUserId: userId, status: "pending" });
   if (existingPending) {
-    return sendError(res, "Pending application already exists", 409);
+    return sendError(res, "Your profile is already with our team for review", 409);
   }
 
   const expertProfile = await ExpertProfile.findOne({ userId });
   if (!expertProfile) {
     return sendError(res, "Expert profile not found", 404);
+  }
+  if (expertProfile.approvalStatus === "approved") {
+    return sendError(res, "Your profile is already approved", 400);
+  }
+
+  // PRD 4.4: a rejected expert can edit and resubmit once; a second rejection is final
+  const isResubmission = expertProfile.approvalStatus === "rejected";
+  if (isResubmission && expertProfile.resubmissionCount >= MAX_RESUBMISSIONS) {
+    return sendError(res, "This application has already been resubmitted once and cannot be reviewed again", 403);
+  }
+  if (isRegulatedTrade(expertProfile) && !hasCompleteCertificate(expertProfile)) {
+    return sendError(
+      res,
+      "Regulated trades need a certificate type, number and issuing body before review",
+      400
+    );
   }
 
   const submission = {
@@ -58,6 +83,17 @@ const createExpertApplication = async (req, res) => {
     hourlyRate: parsed.data.hourlyRate ?? expertProfile.hourlyRate ?? 0,
     yearsExperience: parsed.data.yearsExperience ?? expertProfile.yearsExperience ?? 0,
     portfolio: parsed.data.portfolio ?? expertProfile.portfolio ?? [],
+    country: expertProfile.country,
+    city: expertProfile.city,
+    domain: expertProfile.domain,
+    engagementTypes: expertProfile.engagementTypes,
+    linkedinUrl: expertProfile.linkedinUrl,
+    certifications: (expertProfile.certifications || []).map((c) => ({
+      type: c.type,
+      number: c.number,
+      issuingBody: c.issuingBody || c.body,
+    })),
+    insuranceDeclared: expertProfile.insuranceDeclared,
   };
 
   const application = await Application.create({
@@ -65,12 +101,16 @@ const createExpertApplication = async (req, res) => {
     expertProfileId: expertProfile._id,
     status: "pending",
     submission,
+    isResubmission,
   });
 
   user.accountStatus = "pending_review";
   await user.save();
 
   expertProfile.profileStatus = "pending_review";
+  expertProfile.approvalStatus = "pending";
+  expertProfile.rejectionReason = "";
+  if (isResubmission) expertProfile.resubmissionCount += 1;
   await expertProfile.save();
 
   await AuditLog.create({
@@ -81,6 +121,7 @@ const createExpertApplication = async (req, res) => {
     metadata: {
       applicantUserId: userId.toString(),
       expertProfileId: expertProfile._id.toString(),
+      isResubmission,
     },
   });
 

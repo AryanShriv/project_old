@@ -57,6 +57,14 @@ function formatAction(action: string) {
       return "Expert suspended";
     case "expert_reactivated":
       return "Expert reactivated";
+    case "application_submitted":
+      return "Application submitted";
+    case "review_hidden":
+      return "Review hidden";
+    case "review_unhidden":
+      return "Review shown again";
+    case "other":
+      return "Other activity";
     default:
       return action;
   }

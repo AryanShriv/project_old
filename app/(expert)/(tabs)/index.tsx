@@ -24,13 +24,14 @@ const greetingForHour = (hour: number) => {
 };
 
 export default function ExpertDashboardScreen() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, resubmitApplication } = useAuth();
   const { experts } = useExperts();
   const expertPersonaId = user?.managedExpertId ?? "";
   const { requests, updateRequestStatus } = useRequests();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [resubmitting, setResubmitting] = useState(false);
 
   // Pending experts are not in the public experts list yet, so fall back to the session profile
   const me = experts.find((f) => f.id === expertPersonaId);
@@ -44,6 +45,21 @@ export default function ExpertDashboardScreen() {
 
   const isPendingApproval = user?.accountStatus === "pending_review" && user?.approvalStatus !== "rejected";
   const isRejected = user?.accountStatus === "pending_review" && user?.approvalStatus === "rejected";
+  // PRD 4.4: one resubmission after a rejection; a second rejection is final
+  const canResubmit = isRejected && (user?.resubmissionCount ?? 0) < 1;
+
+  const resubmit = async () => {
+    setResubmitting(true);
+    try {
+      await resubmitApplication();
+      Toast.show({ type: "success", text1: "Sent for review", text2: "Our team will take another look, usually within 48 hours." });
+    } catch (error) {
+      Toast.show({ type: "error", text1: "Not sent", text2: (error as Error).message || "Please try again." });
+    } finally {
+      setResubmitting(false);
+    }
+  };
+
   const profileComplete = Boolean(
     (me?.title && me.title !== "Expert") || user?.profile?.headline
   ) && Boolean(me?.skills?.length || user?.profile?.bio);
@@ -93,15 +109,41 @@ export default function ExpertDashboardScreen() {
                     "Our team reviewed your application and would like a few details updated before it goes live."
                   : "We personally review every expert, usually within 48 hours. In the meantime you can finish your profile and set your availability."}
               </Text>
-              <Pressable
-                onPress={isRejected ? () => router.push("/(expert)/(tabs)/profile" as Href) : refreshUser}
-                hitSlop={8}
-                style={styles.bannerLink}
-              >
-                <Text style={styles.bannerLinkText}>
-                  {isRejected ? "Update my profile" : "Check my status"}
+              {isRejected && !canResubmit ? (
+                <Text style={styles.bannerBody}>
+                  This application was already resubmitted once, so it can&apos;t be reviewed again. If you think
+                  something went wrong, please contact support.
                 </Text>
-              </Pressable>
+              ) : (
+                <Pressable
+                  onPress={isRejected ? () => router.push("/(expert)/(tabs)/profile" as Href) : refreshUser}
+                  hitSlop={8}
+                  style={styles.bannerLink}
+                >
+                  <Text style={styles.bannerLinkText}>
+                    {isRejected ? "Update my profile" : "Check my status"}
+                  </Text>
+                </Pressable>
+              )}
+              {canResubmit && (
+                <>
+                  <Text style={styles.bannerBody}>
+                    When your profile is updated, send it back to us. You can resubmit once.
+                  </Text>
+                  <Pressable
+                    style={[styles.btn, styles.btnPrimary, styles.bannerBtn]}
+                    onPress={resubmit}
+                    disabled={resubmitting}
+                    accessibilityRole="button"
+                  >
+                    {resubmitting ? (
+                      <ActivityIndicator color={brand.onPrimary} />
+                    ) : (
+                      <Text style={styles.btnPrimaryText}>Resubmit for review</Text>
+                    )}
+                  </Pressable>
+                </>
+              )}
             </View>
           </View>
         )}
@@ -249,6 +291,10 @@ const createStyles = (colors: ThemeColors) =>
       marginTop: spacing.sm,
       minHeight: minTapTarget,
       justifyContent: "center",
+      alignSelf: "flex-start",
+    },
+    bannerBtn: {
+      marginTop: spacing.sm,
       alignSelf: "flex-start",
     },
     bannerLinkText: {

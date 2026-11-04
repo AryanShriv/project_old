@@ -47,6 +47,34 @@ request is **dual-written** to those legacy fields. Read the new fields in new c
   (started from `server.js`), marks them `expired`, and notifies the user by push (`utils/push.js`, Expo push service)
   and the `request:updated` socket event.
 
+## Trust and approval (PRD Phase 2)
+
+Rules live in `src/constants/trust.js`, mirrored in the app at `src/constants/trust.ts`. **Change both together**
+and bump `TERMS_VERSION` / `DISCLAIMER_VERSION` whenever the Terms or disclaimer wording changes.
+
+- **Signup** (`POST /auth/register`) requires the current `termsVersion` and every role-specific acknowledgement;
+  each is stored with a timestamp in `user.legalAcceptance`. Experts also send `expertProfile`
+  (country, city, domain, engagementTypes, optional LinkedIn). Electrical, Plumbing and HVAC (and the Gas Fitting skill)
+  require a certificate type, number and issuing body. On-site is Canada only and requires an insurance declaration.
+- **Approval** (`PATCH /admin/applications/:id`) takes `checklist { idVerified, certificateVerified, insuranceConfirmed, linkedinVerified }`.
+  ID is always required, the certificate for regulated trades, insurance for on-site. Rejection needs a reason
+  (min 10 chars), which is emailed. A rejected expert resubmits with `POST /applications/expert`, once; a second
+  rejection is final. Licences are marked `verified` only by an approval with `certificateVerified`.
+- **Requests** must include `acknowledgedDisclaimers` and `disclaimerVersion`; the backend computes which disclaimers
+  apply (expert's field + session type) and stores the acknowledgement on the request.
+- **Reviews** (`POST /reviews/:expertId`): user role only, completed sessions only, one per session
+  (`request.reviewedAt` + unique `requestId`). Fields: `whatILearned` (min 20), `expertStyle`
+  (structured | conversational | hands_on), `wouldRecommend`. Completing a session sends a review prompt by push + email.
+  Admins moderate with `GET /admin/reviews` and `PATCH /admin/reviews/:id/visibility` (hiding needs a note).
+  Expert stats are always recomputed from visible reviews (`reviews.stats.js`).
+- **Backfill** existing data: `node src/migrations/trust-fields-backfill.js dry-run`, then `run`.
+
+## Email
+
+Transactional email goes through [Resend](https://resend.com) (`src/utils/email.js`). Set `RESEND_API_KEY` and
+`EMAIL_FROM` (an address on a domain verified in Resend). Without a key, emails are printed to the console, so
+local development and tests never send real mail.
+
 ## Current status
 
 - Route/module skeletons are implemented for:

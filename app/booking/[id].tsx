@@ -16,6 +16,8 @@ import {
 import Toast from 'react-native-toast-message';
 
 import { Avatar } from '@/src/components/Avatar/Avatar';
+import { DisclaimerCard } from '@/src/components/DisclaimerCard/DisclaimerCard';
+import { DISCLAIMER_VERSION, DisclaimerId, requestDisclaimers } from '@/src/constants/trust';
 import { useExperts } from '@/src/context/ExpertsContext';
 import { useRequests } from '@/src/context/RequestsContext';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -57,10 +59,22 @@ export default function RequestSessionScreen() {
   const [timing, setTiming] = useState<TimingPreference | null>(null);
   const [focused, setFocused] = useState<'headline' | 'description' | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [acknowledged, setAcknowledged] = useState<Set<DisclaimerId>>(new Set());
 
   const firstName = expert?.name.split(' ')[0] || 'The expert';
   const offersOnsite = expert?.country?.toLowerCase() === 'canada';
   const sessionTypes = SESSION_TYPES.filter((t) => t.id !== 'onsite' || offersOnsite);
+
+  // PRD 4.6: every note that applies to this expert and session type must be ticked
+  const disclaimers = expert ? requestDisclaimers(expert, sessionType) : [];
+  const allAcknowledged = disclaimers.every((d) => acknowledged.has(d.id));
+  const toggleAcknowledged = (id: DisclaimerId) =>
+    setAcknowledged((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const headlineLength = headline.trim().length;
   const descriptionLength = description.trim().length;
@@ -68,7 +82,8 @@ export default function RequestSessionScreen() {
     headlineLength >= HEADLINE_MIN &&
     descriptionLength >= DESCRIPTION_MIN &&
     sessionType !== null &&
-    timing !== null;
+    timing !== null &&
+    allAcknowledged;
 
   const handleSubmit = async () => {
     if (!isValid || !expert || submitting || !sessionType || !timing) return;
@@ -80,6 +95,8 @@ export default function RequestSessionScreen() {
         description: description.trim(),
         sessionType,
         timingPreference: timing,
+        acknowledgedDisclaimers: disclaimers.map((d) => d.id),
+        disclaimerVersion: DISCLAIMER_VERSION,
       });
       Toast.show({
         type: 'success',
@@ -234,6 +251,19 @@ export default function RequestSessionScreen() {
               );
             })}
           </View>
+        </View>
+
+        {/* 5. Notes to acknowledge */}
+        <View style={styles.field}>
+          <Text style={styles.label}>Before you send</Text>
+          {disclaimers.map((disclaimer) => (
+            <DisclaimerCard
+              key={disclaimer.id}
+              disclaimer={disclaimer}
+              acknowledged={acknowledged.has(disclaimer.id)}
+              onToggle={() => toggleAcknowledged(disclaimer.id)}
+            />
+          ))}
         </View>
       </ScrollView>
 

@@ -1,13 +1,67 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 
 export const ACCESS_TOKEN_KEY = "@api_access_token_v1";
 export const REFRESH_TOKEN_KEY = "@api_refresh_token_v1";
 
-// Use local backend for development since it contains the latest user/expert role updates
-const API_BASE = process.env.EXPO_PUBLIC_API_URL 
-  || (__DEV__ ? (Platform.OS === 'android' ? 'http://10.0.2.2:4000/api/v1' : 'http://localhost:4000/api/v1') : 'https://project-old.onrender.com/api/v1');
+const PRODUCTION_API = "https://project-old.onrender.com/api/v1";
+const LOCAL_API_PORT = 4000;
+
+/**
+ * Where the API lives:
+ * 1. EXPO_PUBLIC_API_URL from .env, if set (e.g. the Render URL, or http://<your-PC-ip>:4000/api/v1)
+ * 2. In development, the machine running Metro. Expo reports its LAN address as hostUri, which a
+ *    physical phone on the same Wi-Fi can reach ("localhost" and "10.0.2.2" only work in simulators).
+ * 3. Production otherwise.
+ */
+const resolveApiBase = () => {
+  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+  if (!__DEV__) return PRODUCTION_API;
+  if (Platform.OS === "web") return `http://localhost:${LOCAL_API_PORT}/api/v1`;
+  const host = Constants.expoConfig?.hostUri?.split(":")[0];
+  return host ? `http://${host}:${LOCAL_API_PORT}/api/v1` : PRODUCTION_API;
+};
+
+export const API_BASE = resolveApiBase();
+/** Origin of the API, for the socket connection */
+export const API_ORIGIN = API_BASE.replace(/\/api\/v1\/?$/, "");
+
+if (__DEV__) {
+  console.log(`[api] Using ${API_BASE}`);
+}
+
+// A free Render instance can take ~50s to wake up, so one attempt waits 25s and GETs retry once
+const REQUEST_TIMEOUT_MS = 25_000;
+
+/** Thrown when the server could not be reached at all (offline, asleep, wrong address). */
+export class NetworkError extends Error {
+  constructor(message = "We couldn't reach G(Old). Check your connection and try again.") {
+    super(message);
+    this.name = "NetworkError";
+  }
+}
+
+/** Thrown when the server answered with an error. `status` is the HTTP status. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+const fetchWithTimeout = async (url: string, init: RequestInit) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch {
+    throw new NetworkError();
+  } finally {
+    clearTimeout(timer);
+  }
+};
 
 type ApiOptions = {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
@@ -62,7 +116,7 @@ async function doRefreshAccessToken() {
   const { refreshToken } = await readTokens();
   if (!refreshToken) return null;
 
-  const response = await fetch(`${API_BASE}/auth/refresh`, {
+  const response = await fetchWithTimeout(`${API_BASE}/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),
@@ -87,12 +141,21 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   }
 
-  const doFetch = async () =>
-    fetch(`${API_BASE}${path}`, {
+  const send = () =>
+    fetchWithTimeout(`${API_BASE}${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
     });
+  // Reads are safe to retry once (covers a server waking up); writes are never retried
+  const doFetch = async () => {
+    try {
+      return await send();
+    } catch (error) {
+      if (method === "GET" && error instanceof NetworkError) return send();
+      throw error;
+    }
+  };
 
   let response = await doFetch();
   if (response.status === 401 && auth) {
@@ -103,9 +166,15 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
     }
   }
 
-  const json = (await response.json()) as ApiEnvelope<T>;
+  let json: ApiEnvelope<T>;
+  try {
+    json = (await response.json()) as ApiEnvelope<T>;
+  } catch {
+    // e.g. an HTML error page from a proxy while the server is starting
+    throw new ApiError("The server sent an unexpected response. Please try again.", response.status);
+  }
   if (!response.ok || !json.success) {
-    throw new Error(json.message || "Request failed");
+    throw new ApiError(json.message || "Request failed", response.status);
   }
   return json.data;
 }

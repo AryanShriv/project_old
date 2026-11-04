@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
 import { Avatar } from "@/src/components/Avatar/Avatar";
+import { DisclaimerCard } from "@/src/components/DisclaimerCard/DisclaimerCard";
+import { isRegulatedTrade, isTrade, profileDisclaimers } from "@/src/constants/trust";
 import { ReviewList } from "@/src/components/ReviewList/ReviewList";
 import { useAuth } from "@/src/context/AuthContext";
 import { useExperts } from "@/src/context/ExpertsContext";
@@ -18,11 +20,13 @@ import { minTapTarget, spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
 import { Review, reviewsApi } from "@/src/services/reviewsApi";
 
-const ENGAGEMENT_CHIPS: Record<string, string[]> = {
-  remote: ["Remote"],
-  onsite: ["On-site"],
-  both: ["Remote", "On-site"],
-};
+const ENGAGEMENT_LABELS: Record<string, string> = { remote: "Remote", onsite: "On-site" };
+
+const STYLE_LABELS = [
+  { key: "structured", label: "Structured" },
+  { key: "conversational", label: "Conversational" },
+  { key: "hands_on", label: "Hands-on" },
+] as const;
 
 export default function ExpertProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -53,9 +57,17 @@ export default function ExpertProfileScreen() {
   const isUser = user?.role === "user";
   const saved = isSaved(expert.id);
   const reviewCount = expert.reviewCount ?? 0;
-  const recommendPercent =
-    reviewCount > 0 ? Math.round(((expert.recommendedCount ?? 0) / reviewCount) * 100) : null;
-  const engagementChips = ENGAGEMENT_CHIPS[expert.engagementType ?? "remote"] ?? [];
+  const recommendPercent = reviewCount > 0 ? expert.recommendPercentage : null;
+  const engagementChips = expert.engagementTypes.map((type) => ENGAGEMENT_LABELS[type]);
+  const styleCounts = STYLE_LABELS.filter(({ key }) => expert.styleBreakdown[key] > 0);
+  const disclaimers = profileDisclaimers(expert);
+
+  // PRD 4.4: a licence is only claimed once an admin has checked it. Unregulated trades get
+  // an "experience verified" note instead of a licence claim.
+  const verifiedLicence = expert.verified && isRegulatedTrade(expert)
+    ? expert.certifications?.find((c) => c.verified)
+    : undefined;
+  const experienceVerifiedTrade = expert.verified && isTrade(expert) && !isRegulatedTrade(expert);
 
   // Signed-out visitors come back to this profile after login (PRD 5.3)
   const goToLogin = () =>
@@ -150,6 +162,39 @@ export default function ExpertProfileScreen() {
           )}
         </View>
 
+        {(verifiedLicence || experienceVerifiedTrade) && (
+          <View style={styles.section}>
+            <View style={styles.credential}>
+              <Ionicons name="ribbon-outline" size={22} color={colors.primary} />
+              <View style={styles.credentialText}>
+                {verifiedLicence ? (
+                  <>
+                    <Text style={styles.credentialTitle}>Licence checked by G(Old)</Text>
+                    <Text style={styles.body}>
+                      {verifiedLicence.type} · {verifiedLicence.issuingBody}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.credentialTitle}>Experience verified by G(Old)</Text>
+                    <Text style={styles.body}>
+                      Our team reviewed this expert&apos;s work history. This trade does not require a licence in Ontario.
+                    </Text>
+                  </>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+
+        {disclaimers.length > 0 && (
+          <View style={styles.section}>
+            {disclaimers.map((disclaimer) => (
+              <DisclaimerCard key={disclaimer.id} disclaimer={disclaimer} />
+            ))}
+          </View>
+        )}
+
         {/* 4. Career highlights */}
         {expert.experience.length > 0 && (
           <View style={styles.section}>
@@ -176,6 +221,18 @@ export default function ExpertProfileScreen() {
         {/* 5. Reviews */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Reviews</Text>
+          {recommendPercent !== null && (
+            <View style={styles.reviewSummary}>
+              <Text style={styles.reviewSummaryHeadline}>
+                {recommendPercent}% recommend · {reviewCount} {reviewCount === 1 ? "review" : "reviews"}
+              </Text>
+              {styleCounts.length > 0 && (
+                <Text style={styles.reviewSummaryStyles}>
+                  Style: {styleCounts.map(({ key, label }) => `${label} ${expert.styleBreakdown[key]}`).join(" · ")}
+                </Text>
+              )}
+            </View>
+          )}
           <ReviewList reviews={reviews} />
         </View>
       </ScrollView>
@@ -316,6 +373,33 @@ const createStyles = (colors: ThemeColors) =>
     tagText: {
       ...typography.bodyMedium,
       color: colors.onPrimaryMuted,
+    },
+    credential: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    credentialText: {
+      flex: 1,
+    },
+    credentialTitle: {
+      ...typography.bodyMedium,
+      color: colors.textPrimary,
+    },
+    reviewSummary: {
+      marginBottom: spacing.md,
+    },
+    reviewSummaryHeadline: {
+      ...typography.bodyMedium,
+      color: colors.textPrimary,
+    },
+    reviewSummaryStyles: {
+      ...typography.body,
+      color: colors.textSecondary,
     },
     timelineItem: {
       flexDirection: "row",

@@ -7,32 +7,103 @@ const Application = require("../applications/application.model");
 const env = require("../../config/env");
 const { sendSuccess, sendError } = require("../../utils/http");
 const { signAccessToken, signRefreshToken, buildAuthUserPayload } = require("./auth.utils");
+const { TERMS_VERSION, REGULATED_CATEGORIES, isRegulatedTrade } = require("../../constants/trust");
+
+const expertProfileSchema = z.object({
+  country: z.enum(["Canada", "India"]),
+  city: z.string().trim().min(2).max(80),
+  domain: z.string().trim().min(2).max(60), // one category from the G(Old) taxonomy
+  engagementTypes: z.array(z.enum(["remote", "onsite"])).min(1),
+  linkedinUrl: z.string().trim().url().or(z.literal("")).optional().default(""),
+  certification: z
+    .object({
+      type: z.string().trim().max(120).default(""),
+      number: z.string().trim().max(60).default(""),
+      issuingBody: z.string().trim().max(120).default(""),
+    })
+    .optional(),
+  insuranceDeclared: z.boolean().optional().default(false),
+});
+
+// Each acknowledgement must be explicitly true; it is stored with a timestamp (PRD 4.5)
+const mustAccept = (data, ctx, field, message) => {
+  if (data[field] !== true) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: [field] });
+  }
+};
 
 const registerSchema = z
   .object({
     email: z.string().trim().email(),
     password: z.string().min(6),
     fullName: z.string().trim().min(2).max(100),
-    role: z.enum(["user", "expert"]).optional(),
+    role: z.enum(["user", "expert"]).optional().default("user"),
+    termsVersion: z.string().trim(),
     acceptedTerms: z.boolean(),
+    // Users
+    acknowledgedPlatformOnly: z.boolean().optional(),
+    acknowledgedOnsiteSafety: z.boolean().optional(),
+    // Experts
     acceptedExpertCompliance: z.boolean().optional(),
+    acknowledgedIndependentContractor: z.boolean().optional(),
+    acknowledgedInsurance: z.boolean().optional(),
+    expertProfile: expertProfileSchema.optional(),
   })
   .superRefine((data, ctx) => {
-    if (!data.acceptedTerms) {
+    if (data.termsVersion !== TERMS_VERSION) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "You must accept the Terms and Conditions to register.",
-        path: ["acceptedTerms"],
+        message: "Our Terms have been updated. Please update the app and accept the latest version.",
+        path: ["termsVersion"],
       });
     }
-    if (data.role === "expert" && !data.acceptedExpertCompliance) {
+    mustAccept(data, ctx, "acceptedTerms", "You must accept the Terms and Conditions to register.");
+
+    if (data.role === "user") {
+      mustAccept(data, ctx, "acknowledgedPlatformOnly", "Please acknowledge that G(Old) is a platform only.");
+      mustAccept(data, ctx, "acknowledgedOnsiteSafety", "Please acknowledge the on-site safety terms.");
+      return;
+    }
+
+    mustAccept(data, ctx, "acceptedExpertCompliance", "You must confirm your professional credentials declaration.");
+    mustAccept(data, ctx, "acknowledgedIndependentContractor", "Please confirm you are an independent contractor.");
+    mustAccept(data, ctx, "acknowledgedInsurance", "Please acknowledge the insurance terms for on-site work.");
+
+    const profile = data.expertProfile;
+    if (!profile) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Tell us about your expertise.", path: ["expertProfile"] });
+      return;
+    }
+    const onsite = profile.engagementTypes.includes("onsite");
+    if (onsite && profile.country !== "Canada") {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "You must confirm your professional credentials declaration.",
-        path: ["acceptedExpertCompliance"],
+        message: "On-site sessions are only available in Canada.",
+        path: ["expertProfile", "engagementTypes"],
       });
+    }
+    if (onsite && !profile.insuranceDeclared) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "On-site work requires you to declare that you hold liability insurance.",
+        path: ["expertProfile", "insuranceDeclared"],
+      });
+    }
+    if (isRegulatedTrade({ domain: profile.domain })) {
+      const cert = profile.certification || {};
+      if (!cert.type || !cert.number || !cert.issuingBody) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${REGULATED_CATEGORIES.join(", ")} are regulated trades: certificate type, number and issuing body are required.`,
+          path: ["expertProfile", "certification"],
+        });
+      }
     }
   });
+
+// Legacy single-value mirror of engagementTypes for older app builds
+const toLegacyEngagementType = (types) =>
+  types.includes("remote") && types.includes("onsite") ? "both" : types.includes("onsite") ? "onsite" : "remote";
 
 const loginSchema = z.object({
   email: z.string().trim().email(),
@@ -42,10 +113,11 @@ const loginSchema = z.object({
 const register = async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
-    return sendError(res, "Invalid register payload", 400, parsed.error.flatten());
+    const firstIssue = parsed.error.issues[0]?.message;
+    return sendError(res, firstIssue || "Invalid register payload", 400, parsed.error.flatten());
   }
 
-  const { email, password, fullName, role = "user" } = parsed.data;
+  const { email, password, fullName, role, termsVersion } = parsed.data;
   const existing = await User.findOne({ email });
   if (existing) {
     return sendError(res, "Email already registered", 409);
@@ -61,27 +133,60 @@ const register = async (req, res) => {
     accountStatus,
     profile: { fullName },
     legalAcceptance: {
+      termsVersion,
       termsAcceptedAt: acceptedAt,
       expertComplianceAcceptedAt: role === "expert" ? acceptedAt : null,
+      independentContractorAcceptedAt: role === "expert" ? acceptedAt : null,
+      insuranceAcknowledgedAt: role === "expert" ? acceptedAt : null,
+      platformOnlyAcknowledgedAt: role === "user" ? acceptedAt : null,
+      onsiteSafetyAcknowledgedAt: role === "user" ? acceptedAt : null,
     },
   });
 
   if (role === "expert") {
+    const details = parsed.data.expertProfile;
+    const cert = details.certification;
+    const certifications =
+      cert && cert.type && cert.number && cert.issuingBody
+        ? [{ type: cert.type, number: cert.number, issuingBody: cert.issuingBody, body: cert.issuingBody, verified: false }]
+        : [];
+    const onsite = details.engagementTypes.includes("onsite");
+
     const profile = await FreelancerProfile.create({
       userId: user._id,
       fullName,
       headline: "",
       bio: "",
+      country: details.country,
+      city: details.city,
+      location: `${details.city}, ${details.country}`,
+      domain: details.domain,
+      categories: [details.domain],
+      engagementTypes: details.engagementTypes,
+      engagementType: toLegacyEngagementType(details.engagementTypes),
+      linkedinUrl: details.linkedinUrl,
+      certifications,
+      insuranceDeclared: onsite && details.insuranceDeclared,
+      insuranceDeclaredAt: onsite && details.insuranceDeclared ? acceptedAt : undefined,
       profileStatus: "pending_review",
+      approvalStatus: "pending",
     });
-    
+
     await Application.create({
       applicantUserId: user._id,
       expertProfileId: profile._id,
       status: "pending",
       submission: {
         fullName,
-      }
+        country: details.country,
+        city: details.city,
+        domain: details.domain,
+        categories: [details.domain],
+        engagementTypes: details.engagementTypes,
+        linkedinUrl: details.linkedinUrl,
+        certifications: certifications.map(({ type, number, issuingBody }) => ({ type, number, issuingBody })),
+        insuranceDeclared: onsite && details.insuranceDeclared,
+      },
     });
   }
 

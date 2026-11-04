@@ -28,9 +28,17 @@ const userSchema = new mongoose.Schema(
     profile: { type: profileSchema, default: () => ({}) },
     refreshTokenHash: { type: String, default: null },
     pushTokens: { type: [String], default: [] },
+    // What the person agreed to at signup, and when (PRD 4.5)
     legalAcceptance: {
+      termsVersion: { type: String, default: "" },
       termsAcceptedAt: { type: Date, default: null },
-      expertComplianceAcceptedAt: { type: Date, default: null },
+      // Experts
+      expertComplianceAcceptedAt: { type: Date, default: null }, // credentials declaration
+      independentContractorAcceptedAt: { type: Date, default: null },
+      insuranceAcknowledgedAt: { type: Date, default: null },
+      // Users
+      platformOnlyAcknowledgedAt: { type: Date, default: null },
+      onsiteSafetyAcknowledgedAt: { type: Date, default: null },
     },
   },
   { timestamps: true, versionKey: false }

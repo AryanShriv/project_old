@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { TERMS_VERSION } from "@/src/constants/trust";
 import { useTheme } from "@/src/context/ThemeContext";
 import { radius } from "@/src/design-system/radius";
 import { spacing } from "@/src/design-system/spacing";
@@ -8,8 +9,9 @@ import { spacing } from "@/src/design-system/spacing";
 const TERMS_TEXT = `
 Terms and Conditions
 G(Old) — Canada (Ontario)
+Version: ${TERMS_VERSION}
 Effective Date: June 1, 2026
-Last Updated: June 1, 2026
+Last Updated: November 3, 2026
 
 A note before you read:
 We've written these terms to be clear and honest — not to hide things in legal language. Please read them. They protect you and they protect the experts on our platform.
@@ -85,6 +87,12 @@ Accuracy, professional conduct, safety compliance, and confidentiality are manda
 6.5 What Experts Cannot Do
 No misrepresentation, no unlicensed regulated services, no discriminatory conduct, no data misuse, and no circumvention of platform terms.
 
+6.6 Insurance for On-site Engagements
+Experts who offer On-site Engagements must hold, and keep in force, liability insurance appropriate to the work, and must declare this to G(Old). G(Old) does not insure Experts or Users.
+
+6.7 Approval and Resubmission
+G(Old) reviews every Expert before their profile goes live. A rejection is sent with a reason. A rejected application may be edited and resubmitted once; a second rejection is final. The Verified badge and any licence shown on a profile appear only after G(Old) has checked them.
+
 7. User Terms
 7.1 Platform Use
 Browsing profiles does not require account; sending requests requires registration.
@@ -96,7 +104,10 @@ Use lawfully, communicate respectfully, attend sessions, pay agreed fees, and do
 No harassment, fake activity, unauthorized commercial use, or platform circumvention.
 
 7.4 On-site Engagement Responsibilities
-Users must maintain safe premises and disclose hazards.
+Users must maintain safe premises and disclose hazards. Users must not ask an Expert to carry out work that legally requires a licence or permit (such as electrical, gas, plumbing or HVAC work in Ontario) unless the Expert holds that licence and the required permits are in place.
+
+7.5 Experience-Based Sessions, Not Professional Advice
+Sessions are conversations in which Experts share their own experience. Unless an Expert separately agrees in writing to act in a licensed professional capacity, a Session is not legal, medical, financial, investment, tax, real estate, engineering or other licensed professional advice, and does not create a lawyer–client, doctor–patient, adviser–client or similar relationship. Before you send a Request in a sensitive field, the Platform shows notes you must acknowledge; we keep a record of which notes you acknowledged and when. You are responsible for your own decisions and for seeking licensed advice where it is needed.
 
 8. G(Old)'s Role
 8.1 We operate the platform, verify credentials, provide communication channels, and moderate content.
@@ -113,7 +124,9 @@ Users must maintain safe premises and disclose hazards.
 You agree to indemnify 2AM Creations for claims arising from your use, violations, legal breaches, or disputes.
 
 11. Reviews and Content
-Reviews must be genuine and lawful.
+Only a User who completed a Session may review it, and only once per Session.
+Reviews must be genuine, lawful, and about the Session.
+We may hide reviews that breach these Terms; hidden reviews do not count towards an Expert's recommendation figures.
 We may remove violating content.
 You retain ownership of submitted content and grant platform usage license.
 
@@ -145,6 +158,7 @@ Disputes resolved under Ontario court jurisdiction.
 
 18. Changes to Terms
 We may update terms; significant changes receive notice.
+We record the version of these Terms you accepted, the acknowledgements you gave, and when.
 Continued use after changes means acceptance.
 
 19. Severability
@@ -213,8 +227,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   body: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 26,
   },
 });
 
