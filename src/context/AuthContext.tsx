@@ -29,15 +29,13 @@ type AuthContextType = {
   applications: ExpertApplication[];
   auditLogs: AuditLogEntry[];
   expertStatus: Record<string, ExpertAccountStatus>;
+  /** Signs in and reports the account's role, so the caller can open the right area */
   login: (
     email: string,
     password: string,
-    intent: AuthRoleIntent,
-  ) => Promise<{ ok: true } | { ok: false; message: string }>;
-  register: (input: RegisterInput) => Promise<
-    | { ok: true; requiresApproval?: boolean; message?: string }
-    | { ok: false; message: string }
-  >;
+  ) => Promise<{ ok: true; role: AuthRoleIntent } | { ok: false; message: string }>;
+  /** Experts are signed in straight away; their dashboard shows that the application is under review */
+  register: (input: RegisterInput) => Promise<{ ok: true } | { ok: false; message: string }>;
   /** Throws with the backend message (e.g. checklist incomplete) so the admin sees why */
   reviewApplication: (
     id: string,
@@ -273,7 +271,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const login = useCallback(
-    async (email: string, password: string, intent: AuthRoleIntent) => {
+    async (email: string, password: string) => {
       const rateLimitKey = `login:${email.toLowerCase().trim()}`;
 
       // Check rate limit before attempting login
@@ -294,12 +292,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           method: "POST",
           body: { email, password },
         });
-        if (data.user.role !== intent) {
-          await recordFailedAttempt(rateLimitKey);
-          return { ok: false as const, message: "Account type does not match selected role." };
-        }
+        // The account decides where the person goes; there is no role to pick at sign-in
         if (data.user.accountStatus === "suspended") {
-          await recordFailedAttempt(rateLimitKey);
           return { ok: false as const, message: "Your account is paused right now. Please contact support and we will help you sort it out." };
         }
 
@@ -314,10 +308,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         // Register device token for push notifications (non-blocking).
         registerPushToken();
-        return { ok: true as const };
+        return { ok: true as const, role: nextUser.role };
       } catch (error) {
-        // Record failed attempt for rate limiting
-        await recordFailedAttempt(rateLimitKey);
+        // Only a wrong email or password counts toward the lockout, not a server that can't be reached
+        if (error instanceof ApiError && error.status === 401) {
+          await recordFailedAttempt(rateLimitKey);
+        }
         return { ok: false as const, message: (error as Error).message || "Login failed" };
       }
     },
@@ -373,14 +369,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             expertProfile: input.expertProfile,
           },
         });
-        if (input.role === "expert") {
-          await clearTokens();
-          return {
-            ok: true as const,
-            requiresApproval: true,
-            message: "Application submitted. Wait for admin approval.",
-          };
-        }
         await persistTokens(data.accessToken, data.refreshToken);
         await persistSession(toSessionUser(data.user));
         // Register device token for push notifications (non-blocking).

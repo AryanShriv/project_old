@@ -24,7 +24,7 @@ import type { AuthRoleIntent } from "@/src/types/auth";
 
 export default function LoginScreen() {
   const { login, isLoading: authBoot } = useAuth();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const params = useLocalSearchParams<{
@@ -35,14 +35,6 @@ export default function LoginScreen() {
   const intentParam =
     typeof params.intent === "string" ? params.intent : undefined;
   const isAdminEntry = Platform.OS === "web" && intentParam === "admin";
-  const initialIntent: AuthRoleIntent =
-    isAdminEntry
-      ? "admin"
-      : intentParam === "expert"
-      ? "expert"
-      : "user";
-
-  const [intent, setIntent] = useState<AuthRoleIntent>(initialIntent);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -52,7 +44,8 @@ export default function LoginScreen() {
   const goAfterLogin = useCallback(
     (role: AuthRoleIntent) => {
       const returnTo = params.returnTo;
-      if (returnTo && typeof returnTo === "string") {
+      // returnTo points at user screens (e.g. an expert's profile), so it only applies to users
+      if (role === "user" && returnTo && typeof returnTo === "string") {
         router.replace(returnTo as Href);
         return;
       }
@@ -71,12 +64,12 @@ export default function LoginScreen() {
     setError(null);
     setSubmitting(true);
     try {
-      const result = await login(email, password, intent);
+      const result = await login(email, password);
       if (!result.ok) {
         setError(result.message);
         return;
       }
-      goAfterLogin(intent);
+      goAfterLogin(result.role);
     } finally {
       setSubmitting(false);
     }
@@ -117,42 +110,9 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>
             {isAdminEntry
               ? "Admin access for expert moderation and platform control."
-              : "Sign in to save experts, send requests, or manage your expert inbox."}
+              : "Sign in with your email and password. We'll take you to the right place, whether you're looking for an expert or you are one."}
           </Text>
 
-          {!isAdminEntry ? (
-            <View style={styles.segment}>
-              <Pressable
-                style={[styles.segBtn, intent === "user" && styles.segBtnOn]}
-                onPress={() => setIntent("user")}
-              >
-                <Text
-                  style={[
-                    styles.segLabel,
-                    intent === "user" && styles.segLabelOn,
-                  ]}
-                >
-                  I need an expert
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.segBtn,
-                  intent === "expert" && styles.segBtnOn,
-                ]}
-                onPress={() => setIntent("expert")}
-              >
-                <Text
-                  style={[
-                    styles.segLabel,
-                    intent === "expert" && styles.segLabelOn,
-                  ]}
-                >
-                  {"I'm an expert"}
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
 
           <Text style={styles.label}>Email</Text>
           <TextInput
@@ -206,7 +166,7 @@ export default function LoginScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/(auth)/signup",
-                  params: { intent },
+                  params: intentParam === "expert" || intentParam === "user" ? { intent: intentParam } : {},
                 })
               }
             >
@@ -253,32 +213,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 24,
     marginBottom: spacing.lg,
-  },
-  segment: {
-    flexDirection: "row",
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.lg,
-  },
-  segBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderRadius: radius.md,
-  },
-  segBtnOn: {
-    backgroundColor: colors.primary,
-  },
-  segLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.textSecondary,
-  },
-  segLabelOn: {
-    color: brand.onPrimary,
   },
   label: {
     fontSize: 13,
