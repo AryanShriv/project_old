@@ -15,10 +15,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { DEMO_PASSWORD } from "@/src/auth/demoAccounts";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { ThemeColors } from "@/src/design-system/colors";
+import { ThemeColors, brand } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { spacing } from "@/src/design-system/spacing";
 import type { AuthRoleIntent } from "@/src/types/auth";
@@ -133,7 +132,7 @@ export default function LoginScreen() {
                     intent === "user" && styles.segLabelOn,
                   ]}
                 >
-                  Hiring
+                  I need an expert
                 </Text>
               </Pressable>
               <Pressable
@@ -149,7 +148,7 @@ export default function LoginScreen() {
                     intent === "expert" && styles.segLabelOn,
                   ]}
                 >
-                  Expert
+                  {"I'm an expert"}
                 </Text>
               </Pressable>
             </View>
@@ -161,13 +160,7 @@ export default function LoginScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             autoComplete="email"
-            placeholder={
-              intent === "user"
-                ? "user@demo.com"
-                : intent === "expert"
-                  ? "john@demo.com"
-                  : "admin@demo.com"
-            }
+            placeholder="you@example.com"
             placeholderTextColor={colors.textMuted}
             value={email}
             onChangeText={setEmail}
@@ -178,7 +171,7 @@ export default function LoginScreen() {
             <TextInput
               style={[styles.input, styles.passwordInput]}
               secureTextEntry={!showPassword}
-              placeholder={`Try "${DEMO_PASSWORD}"`}
+              placeholder="Your password"
               placeholderTextColor={colors.textMuted}
               value={password}
               onChangeText={setPassword}
@@ -202,7 +195,7 @@ export default function LoginScreen() {
             disabled={submitting}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={brand.onPrimary} />
             ) : (
               <Text style={styles.primaryText}>Sign in</Text>
             )}
@@ -280,12 +273,12 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.primary,
   },
   segLabel: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     color: colors.textSecondary,
   },
   segLabelOn: {
-    color: "#fff",
+    color: brand.onPrimary,
   },
   label: {
     fontSize: 13,
@@ -340,7 +333,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     opacity: 0.7,
   },
   primaryText: {
-    color: "#fff",
+    color: brand.onPrimary,
     fontSize: 16,
     fontWeight: "700",
   },
@@ -366,7 +359,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: "center",
   },
   link: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     color: colors.primary,
   },

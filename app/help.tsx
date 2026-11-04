@@ -13,8 +13,8 @@ type FaqItem = { q: string; a: string };
 
 const FAQS: FaqItem[] = [
   {
-    q: "How do I send a consultation request?",
-    a: "Browse the Discover tab, open an expert's profile, and tap 'Consult Talent'. Fill in your project title and submit. The expert will accept or decline.",
+    q: "How do I request a session?",
+    a: "Browse the Discover tab, open an expert's profile, and tap 'Request a Session'. Tell them what you need help with and submit. The expert will accept or decline within 48 hours.",
   },
   {
     q: "How long does it take to hear back?",

@@ -4,6 +4,7 @@ const { connectDatabase } = require("./config/database");
 const { ensureAdminUser } = require("./config/seedAdmin");
 const http = require("http");
 const { initSocketServer } = require("./config/socketServer");
+const { startRequestExpiryJob } = require("./modules/requests/requests.expiry");
 
 const start = async () => {
   try {
@@ -11,6 +12,7 @@ const start = async () => {
     await ensureAdminUser();
     const server = http.createServer(app);
     initSocketServer(server);
+    startRequestExpiryJob();
     server.listen(env.port, () => {
       // eslint-disable-next-line no-console
       console.log(`API server running on port ${env.port}`);

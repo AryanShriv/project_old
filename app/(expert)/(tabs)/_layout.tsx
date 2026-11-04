@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useChat } from "@/src/context/ChatContext";
 import { useTheme } from "@/src/context/ThemeContext";
 
-export default function FreelancerTabsLayout() {
+export default function ExpertTabsLayout() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const { totalUnreadCount } = useChat();
@@ -28,7 +28,7 @@ export default function FreelancerTabsLayout() {
           height: (Platform.OS === "ios" ? 80 : 64) + Math.max(insets.bottom, 0),
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: "600",
         },
       }}
@@ -38,7 +38,7 @@ export default function FreelancerTabsLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid" size={size} color={color} />
+            <Ionicons name="grid" size={size} color={color as string} />
           ),
         }}
       />
@@ -48,7 +48,7 @@ export default function FreelancerTabsLayout() {
         options={{
           title: "Inbox",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="mail-open" size={size} color={color} />
+            <Ionicons name="mail-open" size={size} color={color as string} />
           ),
         }}
       />
@@ -58,7 +58,7 @@ export default function FreelancerTabsLayout() {
         options={{
           title: "Schedule",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar" size={size} color={color} />
+            <Ionicons name="calendar" size={size} color={color as string} />
           ),
         }}
       />
@@ -68,7 +68,7 @@ export default function FreelancerTabsLayout() {
         options={{
           title: "Messages",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
+            <Ionicons name="chatbubbles" size={size} color={color as string} />
           ),
           tabBarBadge: totalUnreadCount > 0 ? totalUnreadCount : undefined,
         }}
@@ -79,7 +79,7 @@ export default function FreelancerTabsLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
+            <Ionicons name="person" size={size} color={color as string} />
           ),
         }}
       />

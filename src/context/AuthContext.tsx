@@ -7,7 +7,7 @@ import React, {
     useMemo,
     useState,
 } from "react";
-import { apiRequest, clearTokens, persistTokens } from "../services/apiClient";
+import { ApiError, apiRequest, clearTokens, persistTokens } from "../services/apiClient";
 import { registerPushToken, unregisterPushToken } from "../services/notificationsService";
 import { checkRateLimit, clearRateLimit, recordFailedAttempt } from "../services/rateLimiter";
 import type {
@@ -15,8 +15,11 @@ import type {
     AuthRoleIntent,
     AuthUser,
     ExpertAccountStatus,
-    ExpertApplication
+    ExpertApplication,
+    RegisterInput,
+    VerificationChecklist,
 } from "../types/auth";
+import { TERMS_VERSION } from "../constants/trust";
 
 const SESSION_KEY = "@auth_session_v1";
 
@@ -31,22 +34,18 @@ type AuthContextType = {
     password: string,
     intent: AuthRoleIntent,
   ) => Promise<{ ok: true } | { ok: false; message: string }>;
-  register: (input: {
-    email: string;
-    password: string;
-    name: string;
-    role: AuthRoleIntent;
-    managedExpertId?: string;
-    acceptedTerms: boolean;
-    acceptedExpertCompliance?: boolean;
-  }) => Promise<
+  register: (input: RegisterInput) => Promise<
     | { ok: true; requiresApproval?: boolean; message?: string }
     | { ok: false; message: string }
   >;
+  /** Throws with the backend message (e.g. checklist incomplete) so the admin sees why */
   reviewApplication: (
     id: string,
     decision: "approved" | "rejected",
+    options?: { note?: string; checklist?: VerificationChecklist },
   ) => Promise<void>;
+  /** Rejected experts can resubmit their edited profile once (PRD 4.4) */
+  resubmitApplication: () => Promise<void>;
   setExpertAccountStatus: (
     expertId: string,
     status: ExpertAccountStatus,
@@ -67,6 +66,7 @@ type BackendAuthUser = {
   managedExpertId?: string;
   approvalStatus?: "pending" | "approved" | "rejected";
   rejectionReason?: string;
+  resubmissionCount?: number;
   profile?: {
     fullName?: string;
     bio?: string;
@@ -76,7 +76,7 @@ type BackendAuthUser = {
     website?: string;
     location?: string;
     phone?: string;
-    
+
     yearsExperience?: number;
     domain?: string;
     engagementType?: "remote" | "onsite" | "both";
@@ -108,7 +108,20 @@ type BackendApplication = {
   expertProfileId?: string;
   status: "pending" | "approved" | "rejected";
   createdAt: string;
+  isResubmission?: boolean;
   review?: { reviewedAt?: string };
+  expertProfile?: {
+    country?: string;
+    city?: string;
+    domain?: string;
+    headline?: string;
+    yearsExperience?: number;
+    engagementTypes?: string[];
+    linkedinUrl?: string;
+    insuranceDeclared?: boolean;
+    certifications?: { type: string; number: string; issuingBody?: string; body?: string }[];
+  } | null;
+  requirements?: VerificationChecklist | null;
 };
 
 type BackendAudit = {
@@ -129,6 +142,7 @@ const toSessionUser = (data: BackendAuthUser): AuthUser => ({
   managedExpertId: data.managedExpertId,
   approvalStatus: data.approvalStatus,
   rejectionReason: data.rejectionReason,
+  resubmissionCount: data.resubmissionCount ?? 0,
   profile: data.profile,
 });
 
@@ -139,7 +153,11 @@ const toAuditAction = (item: BackendAudit): AuditLogEntry["action"] => {
   if (item.action === "expert_status_updated") {
     return item.metadata?.status === "suspended" ? "expert_suspended" : "expert_reactivated";
   }
-  return "application_rejected";
+  if (item.action === "application_submitted" || item.action === "review_hidden" || item.action === "review_unhidden") {
+    return item.action;
+  }
+  // Never guess: an unknown action must not be shown as something it isn't
+  return "other";
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -179,6 +197,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         status: item.status,
         createdAt: item.createdAt,
         reviewedAt: item.review?.reviewedAt,
+        isResubmission: item.isResubmission,
+        details: item.expertProfile
+          ? {
+              ...item.expertProfile,
+              certifications: (item.expertProfile.certifications ?? []).map((c) => ({
+                type: c.type,
+                number: c.number,
+                issuingBody: c.issuingBody || c.body || "",
+              })),
+            }
+          : undefined,
+        requirements: item.requirements ?? undefined,
       }));
       setApplications(mappedApps);
       const mappedAudit: AuditLogEntry[] = audits.items.map((item: BackendAudit) => ({
@@ -197,34 +227,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
+    // Not needed to show the first screen, so it never holds up startup
+    loadExpertStatuses();
+
     (async () => {
+      let cached: AuthUser | null = null;
       try {
         const rawSession = await AsyncStorage.getItem(SESSION_KEY);
-        await loadExpertStatuses();
-        if (rawSession) {
-          // Validate token by hitting a protected endpoint, and take the fresh user from it
-          try {
-            console.log("[Auth] Validating session token on app startup...");
-            const res = await apiRequest<{ user: BackendAuthUser }>('/auth/me', { auth: true });
-            console.log("[Auth] Session validated successfully:", res.user?.email);
-            const freshUser = toSessionUser(res.user);
-            setUser(freshUser);
-            await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(freshUser));
-            if (freshUser.role === "admin") {
-              await loadAdminData();
-            }
-          } catch (err) {
-            console.warn("[Auth] Session validation failed. Cleaning up stale session...", err);
-            // Token invalid or user no longer exists – clear stale session
-            await clearTokens();
-            await AsyncStorage.removeItem(SESSION_KEY);
-            setUser(null);
-          }
+        cached = rawSession ? (JSON.parse(rawSession) as AuthUser) : null;
+      } catch {
+        cached = null;
+      }
+
+      // Show the app straight away with the saved session; check it with the server in the background
+      setUser(cached);
+      setIsLoading(false);
+      if (!cached) return;
+
+      try {
+        const res = await apiRequest<{ user: BackendAuthUser }>("/auth/me", { auth: true });
+        const freshUser = toSessionUser(res.user);
+        setUser(freshUser);
+        await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(freshUser));
+        if (freshUser.role === "admin") {
+          await loadAdminData();
         }
-      } catch (e) {
-        console.error("[Auth] Startup initialization error:", e);
-      } finally {
-        setIsLoading(false);
+      } catch (err) {
+        // Only a definite "not authorised" ends the session. A slow or unreachable server must
+        // not log people out; they keep their saved session and the next request tries again.
+        if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+          await clearTokens();
+          await AsyncStorage.removeItem(SESSION_KEY);
+          setUser(null);
+        } else {
+          console.warn("[Auth] Could not validate the session right now:", (err as Error).message);
+        }
       }
     })();
   }, [loadAdminData, loadExpertStatuses]);
@@ -238,13 +275,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = useCallback(
     async (email: string, password: string, intent: AuthRoleIntent) => {
       const rateLimitKey = `login:${email.toLowerCase().trim()}`;
-      
+
       // Check rate limit before attempting login
       const rateLimit = await checkRateLimit(rateLimitKey);
       if (!rateLimit.allowed) {
-        return { 
-          ok: false as const, 
-          message: rateLimit.message || "Too many failed attempts. Please try again later." 
+        return {
+          ok: false as const,
+          message: rateLimit.message || "Too many failed attempts. Please try again later."
         };
       }
 
@@ -263,12 +300,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         if (data.user.accountStatus === "suspended") {
           await recordFailedAttempt(rateLimitKey);
-          return { ok: false as const, message: "Your account is suspended by admin." };
+          return { ok: false as const, message: "Your account is paused right now. Please contact support and we will help you sort it out." };
         }
-        
+
         // Clear rate limit on successful login
         await clearRateLimit(rateLimitKey);
-        
+
         await persistTokens(data.accessToken, data.refreshToken);
         const nextUser = toSessionUser(data.user);
         await persistSession(nextUser);
@@ -288,15 +325,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   const register = useCallback(
-    async (input: {
-      email: string;
-      password: string;
-      name: string;
-      role: AuthRoleIntent;
-      managedExpertId?: string;
-      acceptedTerms: boolean;
-      acceptedExpertCompliance?: boolean;
-    }) => {
+    async (input: RegisterInput) => {
       const normalizedEmail = input.email.trim().toLowerCase();
       const trimmedName = input.name.trim();
 
@@ -334,8 +363,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             password: input.password,
             fullName: trimmedName,
             role: input.role,
+            termsVersion: TERMS_VERSION,
             acceptedTerms: input.acceptedTerms,
-            acceptedExpertCompliance: input.acceptedExpertCompliance ?? false,
+            acknowledgedPlatformOnly: input.acknowledgedPlatformOnly,
+            acknowledgedOnsiteSafety: input.acknowledgedOnsiteSafety,
+            acceptedExpertCompliance: input.acceptedExpertCompliance,
+            acknowledgedIndependentContractor: input.acknowledgedIndependentContractor,
+            acknowledgedInsurance: input.acknowledgedInsurance,
+            expertProfile: input.expertProfile,
           },
         });
         if (input.role === "expert") {
@@ -359,16 +394,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   const reviewApplication = useCallback(
-    async (id: string, decision: "approved" | "rejected") => {
+    async (
+      id: string,
+      decision: "approved" | "rejected",
+      options: { note?: string; checklist?: VerificationChecklist } = {},
+    ) => {
       await apiRequest(`/admin/applications/${id}`, {
         method: "PATCH",
-        body: { decision },
+        body: { decision, note: options.note ?? "", checklist: options.checklist },
         auth: true,
       });
       await Promise.all([loadAdminData(), loadExpertStatuses()]);
     },
     [loadAdminData, loadExpertStatuses],
   );
+
+  const resubmitApplication = useCallback(async () => {
+    await apiRequest("/applications/expert", { method: "POST", auth: true, body: {} });
+    const data = await apiRequest<BackendAuthUser>("/users/me", { auth: true });
+    await persistSession(toSessionUser(data));
+  }, [persistSession]);
 
   const setExpertAccountStatus = useCallback(
     async (expertId: string, status: ExpertAccountStatus) => {
@@ -422,6 +467,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       login,
       register,
       reviewApplication,
+      resubmitApplication,
       setExpertAccountStatus,
       updateProfile,
       refreshUser,
@@ -436,6 +482,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       login,
       register,
       reviewApplication,
+      resubmitApplication,
       setExpertAccountStatus,
       updateProfile,
       refreshUser,

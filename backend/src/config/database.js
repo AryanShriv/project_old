@@ -12,6 +12,8 @@ const connectDatabase = async () => {
   dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
   await mongoose.connect(env.mongodbUri);
+  // eslint-disable-next-line no-console
+  console.log(`MongoDB connected: ${mongoose.connection.host}/${mongoose.connection.name}`);
 };
 
 module.exports = { connectDatabase };

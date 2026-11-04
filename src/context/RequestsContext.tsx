@@ -1,18 +1,21 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { apiRequest } from "../services/apiClient";
-import { Request } from "../types/requests";
+import { NewRequest, Request, SessionType } from "../types/requests";
 import { useAuth } from "./AuthContext";
 
 type RequestsContextType = {
   requests: Request[];
-  addRequest: (request: Request) => Promise<void>;
+  addRequest: (request: NewRequest) => Promise<void>;
   updateRequestStatus: (id: string, status: Request["status"]) => Promise<void>;
   refreshRequests: () => Promise<void>;
 };
 
 const RequestsContext = createContext<RequestsContextType | null>(null);
 const MONGO_ID_REGEX = /^[0-9a-fA-F]{24}$/;
+
+const toSessionType = (engagementType?: string): SessionType =>
+  engagementType === "onsite" || engagementType === "ongoing" ? engagementType : "remote";
 
 export const RequestsProvider = ({
   children,
@@ -38,20 +41,23 @@ export const RequestsProvider = ({
       });
       const mapped: Request[] = data.items.map((item) => ({
         id: item._id,
-        userId: item.userId,
+        // userId is populated with the requester's profile on list responses
+        userId: item.userId?._id ?? item.userId,
         expertId: item.expertId,
-        userMessage: item.userMessage,
-        description: item.description,
+        // Fall back to legacy fields for requests created before the backfill ran
+        headline: item.headline || item.projectTitle || "",
+        description: item.description || item.userMessage || "",
+        sessionType: item.sessionType || toSessionType(item.engagementType),
         aiSummary: item.aiSummary,
-        engagementType: item.engagementType,
         timingPreference: item.timingPreference,
         status: item.status,
         expiresAt: item.expiresAt,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
         respondedAt: item.respondedAt,
+        completedAt: item.completedAt,
+        reviewedAt: item.reviewedAt,
         userName: item.userName,
-        projectTitle: item.projectTitle,
       }));
       setRequests(mapped);
     } catch {
@@ -64,26 +70,17 @@ export const RequestsProvider = ({
   }, [refreshRequests]);
 
   const addRequest = useCallback(
-    async (request: Request) => {
+    async (request: NewRequest) => {
       if (!MONGO_ID_REGEX.test(request.expertId)) {
         throw new Error(
           "This profile is demo-only and cannot receive requests. Add expert profiles in backend first."
         );
       }
-      await apiRequest(
-        "/requests",
-        {
-          method: "POST",
-          auth: true,
-          body: {
-            expertId: request.expertId,
-            projectTitle: request.projectTitle,
-            userMessage: request.userMessage || request.projectTitle,
-            engagementType: request.engagementType,
-            timingPreference: request.timingPreference,
-          },
-        }
-      );
+      await apiRequest("/requests", {
+        method: "POST",
+        auth: true,
+        body: request,
+      });
       await refreshRequests();
     },
     [refreshRequests]

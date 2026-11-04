@@ -7,20 +7,11 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useRequests } from "@/src/context/RequestsContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { spacing } from "@/src/design-system/spacing";
+import { SESSION_TYPE_LABELS, STATUS_LABELS, TIMING_LABELS, statusBadgeColors } from "@/src/constants/requests";
 import type { Request } from "@/src/types/requests";
+import { brand } from "@/src/design-system/colors";
 
-function statusStyle(status: Request["status"], colors: any) {
-  switch (status) {
-    case "accepted":
-      return { bg: "rgba(34, 197, 94, 0.12)", fg: "#15803d" };
-    case "rejected":
-      return { bg: "rgba(239, 68, 68, 0.1)", fg: "#b91c1c" };
-    default:
-      return { bg: colors.primaryMuted, fg: colors.primary };
-  }
-}
-
-export default function FreelancerInboxScreen() {
+export default function ExpertInboxScreen() {
   const { user } = useAuth();
   const expertPersonaId = user?.managedExpertId ?? "";
   const { requests, updateRequestStatus, refreshRequests } = useRequests();
@@ -42,7 +33,7 @@ export default function FreelancerInboxScreen() {
         <EmptyState
           icon="mail-open-outline"
           title="Inbox is quiet"
-          subtitle="When users send you a consultation request, it will appear here for you to accept or decline."
+          subtitle="When someone asks for your help, their request will appear here for you to accept or decline."
         />
       </SafeAreaView>
     );
@@ -53,7 +44,7 @@ export default function FreelancerInboxScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Inbox</Text>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          {mine.length} lead{mine.length === 1 ? "" : "s"} for you
+          {mine.length} request{mine.length === 1 ? "" : "s"} for you
         </Text>
       </View>
       <FlatList
@@ -61,7 +52,7 @@ export default function FreelancerInboxScreen() {
         data={mine}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
-          const badge = statusStyle(item.status, colors);
+          const badge = statusBadgeColors(item.status, colors);
           const isPending = item.status === "pending";
           const isAccepted = item.status === "accepted";
 
@@ -71,16 +62,16 @@ export default function FreelancerInboxScreen() {
               onPress={() => setSelectedRequest(item)}
             >
               <View style={styles.cardTop}>
-                <Text style={[styles.clientName, { color: colors.textPrimary }]}>
+                <Text style={[styles.requesterName, { color: colors.textPrimary }]}>
                   {item.userName ?? "User"}
                 </Text>
                 <View style={[styles.badge, { backgroundColor: badge.bg }]}>
                   <Text style={[styles.badgeText, { color: badge.fg }]}>
-                    {item.status}
+                    {STATUS_LABELS[item.status]}
                   </Text>
                 </View>
               </View>
-              <Text style={[styles.projectTitle, { color: colors.textSecondary }]}>{item.projectTitle}</Text>
+              <Text style={[styles.projectTitle, { color: colors.textSecondary }]}>{item.headline}</Text>
               {isPending ? (
                 <View style={styles.actions}>
                   <Pressable
@@ -127,9 +118,9 @@ export default function FreelancerInboxScreen() {
         animationType="slide"
         onRequestClose={() => setSelectedRequest(null)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.divider }]}>
               <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Request Details</Text>
               <Pressable onPress={() => setSelectedRequest(null)} style={styles.closeButton}>
                 <Text style={{ color: colors.textSecondary, fontSize: 24, lineHeight: 28 }}>×</Text>
@@ -140,25 +131,25 @@ export default function FreelancerInboxScreen() {
               <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>From</Text>
               <Text style={[styles.modalValue, { color: colors.textPrimary }]}>{selectedRequest?.userName ?? "User"}</Text>
 
-              <Text style={[styles.modalLabel, { color: colors.textSecondary, marginTop: 16 }]}>Project Title</Text>
-              <Text style={[styles.modalValue, { color: colors.textPrimary }]}>{selectedRequest?.projectTitle}</Text>
+              <Text style={[styles.modalLabel, { color: colors.textSecondary, marginTop: 16 }]}>What they need help with</Text>
+              <Text style={[styles.modalValue, { color: colors.textPrimary }]}>{selectedRequest?.headline}</Text>
 
-              <Text style={[styles.modalLabel, { color: colors.textSecondary, marginTop: 16 }]}>Description / Message</Text>
+              <Text style={[styles.modalLabel, { color: colors.textSecondary, marginTop: 16 }]}>Their situation</Text>
               <Text style={[styles.modalValue, { color: colors.textPrimary, lineHeight: 22 }]}>
-                {selectedRequest?.userMessage || selectedRequest?.description || "No further details provided."}
+                {selectedRequest?.description || "No further details provided."}
               </Text>
 
               <View style={styles.row}>
                 <View style={styles.col}>
                   <Text style={[styles.modalLabel, { color: colors.textSecondary, marginTop: 16 }]}>Session Type</Text>
                   <Text style={[styles.modalValue, { color: colors.textPrimary, textTransform: 'capitalize' }]}>
-                    {selectedRequest?.engagementType || "Remote"}
+                    {SESSION_TYPE_LABELS[selectedRequest?.sessionType ?? "remote"]}
                   </Text>
                 </View>
                 <View style={styles.col}>
                   <Text style={[styles.modalLabel, { color: colors.textSecondary, marginTop: 16 }]}>Timing</Text>
                   <Text style={[styles.modalValue, { color: colors.textPrimary, textTransform: 'capitalize' }]}>
-                    {selectedRequest?.timingPreference?.replace('_', ' ') || "Flexible"}
+                    {TIMING_LABELS[selectedRequest?.timingPreference ?? "flexible"]}
                   </Text>
                 </View>
               </View>
@@ -209,7 +200,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 4,
-    fontSize: 15,
+    fontSize: 16,
   },
   list: {
     padding: spacing.sm,
@@ -232,7 +223,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  clientName: {
+  requesterName: {
     fontSize: 17,
     fontWeight: "600",
     flex: 1,
@@ -244,12 +235,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     textTransform: "capitalize",
   },
   projectTitle: {
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 22,
   },
   actions: {
@@ -280,11 +271,10 @@ const styles = StyleSheet.create({
   btnPrimaryText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#fff",
+    color: brand.onPrimary,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
@@ -300,7 +290,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     paddingHorizontal: spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   modalTitle: {
     fontSize: 20,

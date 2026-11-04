@@ -1,5 +1,7 @@
 import { apiRequest } from "./apiClient";
 
+export type ExpertStyle = "structured" | "conversational" | "hands_on";
+
 export type Review = {
   _id: string;
   expertId: string;
@@ -11,9 +13,10 @@ export type Review = {
     }
   };
   requestId: string;
-  comment: string;
+  /** Legacy free text from the first review form; new reviews lead with whatILearned */
+  comment?: string;
   whatILearned: string;
-  expertStyle: string;
+  expertStyle: ExpertStyle | "";
   wouldRecommend: boolean;
   sessionType: string;
   createdAt: string;
@@ -22,11 +25,9 @@ export type Review = {
 
 export type SubmitReviewPayload = {
   requestId: string;
-  comment: string;
-  whatILearned?: string;
-  expertStyle?: string;
+  whatILearned: string;
+  expertStyle: ExpertStyle;
   wouldRecommend: boolean;
-  sessionType?: string;
 };
 
 export const reviewsApi = {

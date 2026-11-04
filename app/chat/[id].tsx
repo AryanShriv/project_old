@@ -9,6 +9,7 @@ import { useChat } from "@/src/context/ChatContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
+import { brand } from "@/src/design-system/colors";
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -140,7 +141,7 @@ export default function ChatScreen() {
             onPress={handleSend}
             disabled={!inputText.trim()}
           >
-            <Ionicons name="send" size={20} color="#fff" />
+            <Ionicons name="send" size={20} color={brand.onPrimary} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   ownMessageText: {
-    color: "#fff",
+    color: brand.onPrimary,
   },
   otherMessageText: {
   },

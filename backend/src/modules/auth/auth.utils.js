@@ -27,12 +27,13 @@ const buildAuthUserPayload = async (user) => {
   if (user.role !== "expert") {
     return base;
   }
-  const profile = await ExpertProfile.findOne({ userId: user._id }).select("_id approvalStatus rejectionReason");
+  const profile = await ExpertProfile.findOne({ userId: user._id }).select("_id approvalStatus rejectionReason resubmissionCount");
   return {
     ...base,
     managedExpertId: profile?._id?.toString(),
     approvalStatus: profile?.approvalStatus,
     rejectionReason: profile?.rejectionReason || "",
+    resubmissionCount: profile?.resubmissionCount ?? 0,
   };
 };
 

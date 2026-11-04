@@ -16,6 +16,7 @@ const daySlotSchema = new mongoose.Schema(
 
 const availabilitySchema = new mongoose.Schema(
   {
+    // Legacy name: holds an ExpertProfile _id. See "Naming" in backend/README.md.
     freelancerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ExpertProfile",

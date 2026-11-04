@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { ThemeColors } from "../../design-system/colors";
+import { ThemeColors, brand } from "../../design-system/colors";
 import { radius } from "../../design-system/radius";
 import { minTapTarget, spacing } from "../../design-system/spacing";
 import { typography } from "../../design-system/typography";
@@ -52,6 +52,6 @@ export const createStyles = (colors: ThemeColors) => StyleSheet.create({
         color: colors.textSecondary,
     },
     filterTextActive: {
-        color: "#FFFFFF",
+        color: brand.onPrimary,
     },
 });

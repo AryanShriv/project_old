@@ -29,7 +29,16 @@ const applicationSchema = new mongoose.Schema(
       hourlyRate: { type: Number, min: 0, default: 0 },
       yearsExperience: { type: Number, min: 0, default: 0 },
       portfolio: [{ title: String, description: String, link: String }],
+      // Credentials captured at signup (PRD 4.4)
+      country: { type: String, trim: true, default: "" },
+      city: { type: String, trim: true, default: "" },
+      domain: { type: String, trim: true, default: "" },
+      engagementTypes: [{ type: String, enum: ["remote", "onsite"] }],
+      linkedinUrl: { type: String, trim: true, default: "" },
+      certifications: [{ type: { type: String }, number: String, issuingBody: String }],
+      insuranceDeclared: { type: Boolean, default: false },
     },
+    isResubmission: { type: Boolean, default: false },
     review: {
       reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
       reviewedAt: { type: Date, default: null },

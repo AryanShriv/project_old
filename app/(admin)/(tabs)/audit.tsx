@@ -57,6 +57,14 @@ function formatAction(action: string) {
       return "Expert suspended";
     case "expert_reactivated":
       return "Expert reactivated";
+    case "application_submitted":
+      return "Application submitted";
+    case "review_hidden":
+      return "Review hidden";
+    case "review_unhidden":
+      return "Review shown again";
+    case "other":
+      return "Other activity";
     default:
       return action;
   }
@@ -82,5 +90,5 @@ const styles = StyleSheet.create({
   },
   action: { fontSize: 16, fontWeight: "700", color: colors.textPrimary },
   meta: { marginTop: 4, fontSize: 13, color: colors.textSecondary },
-  details: { marginTop: 6, fontSize: 12, color: colors.textMuted },
+  details: { marginTop: 6, fontSize: 13, color: colors.textMuted },
 });

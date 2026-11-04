@@ -26,7 +26,7 @@ export default function AdminTabsLayout() {
           height: (Platform.OS === "ios" ? 80 : 64) + Math.max(insets.bottom, 0),
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: "600",
         },
       }}
@@ -36,7 +36,7 @@ export default function AdminTabsLayout() {
         options={{
           title: "Overview",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="analytics" size={size} color={color} />
+            <Ionicons name="analytics" size={size} color={color as string} />
           ),
         }}
       />
@@ -45,16 +45,26 @@ export default function AdminTabsLayout() {
         options={{
           title: "Applications",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text" size={size} color={color} />
+            <Ionicons name="document-text" size={size} color={color as string} />
           ),
         }}
       />
       <Tabs.Screen
+        // Legacy route file name; this is the Experts tab. See "Naming" in backend/README.md.
         name="freelancers"
         options={{
           title: "Experts",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people" size={size} color={color} />
+            <Ionicons name="people" size={size} color={color as string} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="reviews"
+        options={{
+          title: "Reviews",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbox-ellipses" size={size} color={color as string} />
           ),
         }}
       />
@@ -63,7 +73,7 @@ export default function AdminTabsLayout() {
         options={{
           title: "Audit",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="receipt" size={size} color={color} />
+            <Ionicons name="receipt" size={size} color={color as string} />
           ),
         }}
       />
@@ -72,7 +82,7 @@ export default function AdminTabsLayout() {
         options={{
           title: "Admin",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="shield-checkmark" size={size} color={color} />
+            <Ionicons name="shield-checkmark" size={size} color={color as string} />
           ),
         }}
       />

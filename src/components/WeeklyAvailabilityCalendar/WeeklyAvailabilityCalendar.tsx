@@ -187,7 +187,7 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.primary,
     },
     dayShort: {
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: "700",
       color: colors.textMuted,
     },
@@ -196,7 +196,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     dayDate: {
       marginTop: 2,
-      fontSize: 11,
+      fontSize: 13,
       color: colors.textMuted,
     },
     dayDateOn: {
@@ -208,7 +208,7 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: 2,
     },
     timeLabel: {
-      fontSize: 10,
+      fontSize: 13,
       color: colors.textMuted,
       textAlign: "right",
       paddingRight: 6,
@@ -240,7 +240,7 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.border,
     },
     legendText: {
-      fontSize: 12,
+      fontSize: 13,
       color: colors.textMuted,
       marginRight: spacing.sm,
     },

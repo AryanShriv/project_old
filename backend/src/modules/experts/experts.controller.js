@@ -46,6 +46,27 @@ const updateSchema = z
         link: z.string().trim().url().or(z.string().length(0)).optional(),
       })
     ).optional(),
+    // PRD 4.3 profile fields the expert can edit. Approval, badges and stats are admin/system only.
+    domain: z.string().trim().max(60).optional(),
+    country: z.enum(["Canada", "India"]).optional(),
+    city: z.string().trim().max(80).optional(),
+    languages: z.array(z.string().trim().min(1).max(40)).max(10).optional(),
+    linkedinUrl: z.string().trim().url().or(z.literal("")).optional(),
+    pricingCAD: z.number().min(0).max(100000).optional(),
+    pricingINR: z.number().min(0).max(10000000).optional(),
+    engagementTypes: z.array(z.enum(["remote", "onsite"])).min(1).optional(),
+    onsiteRadiusKm: z.number().min(0).max(500).optional(),
+    certifications: z
+      .array(
+        z.object({
+          type: z.string().trim().min(1).max(120),
+          number: z.string().trim().min(1).max(60),
+          issuingBody: z.string().trim().min(1).max(120),
+        })
+      )
+      .max(10)
+      .optional(),
+    insuranceDeclared: z.boolean().optional(),
   })
   .refine((payload) => Object.keys(payload).length > 0, { message: "At least one field is required" });
 
@@ -75,12 +96,15 @@ const listExperts = async (req, res) => {
 
   const skip = (page - 1) * limit;
   const [items, total] = await Promise.all([
-    ExpertProfile.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    ExpertProfile.find(filter).select(ADMIN_ONLY_FIELDS).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     ExpertProfile.countDocuments(filter),
   ]);
 
   return sendSuccess(res, { items, pagination: { page, limit, total } }, "Experts fetched");
 };
+
+// Internal review data that must never reach the public Discover or profile responses
+const ADMIN_ONLY_FIELDS = "-adminNotes -rejectionReason -verificationChecklist";
 
 const getExpertById = async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
@@ -97,6 +121,12 @@ const getExpertById = async (req, res) => {
   const isOwner = requesterUserId && expert.userId.toString() === requesterUserId;
   if (expert.profileStatus !== "active" && requesterRole !== "admin" && !isOwner) {
     return sendError(res, "Expert not available", 404);
+  }
+
+  if (requesterRole !== "admin" && !isOwner) {
+    delete expert.adminNotes;
+    delete expert.rejectionReason;
+    delete expert.verificationChecklist;
   }
 
   return sendSuccess(res, expert, "Expert fetched");
@@ -124,7 +154,33 @@ const updateExpertById = async (req, res) => {
     return sendError(res, "Forbidden", 403);
   }
 
-  Object.assign(profile, parsed.data);
+  const { certifications, engagementTypes, onsiteRadiusKm, insuranceDeclared, ...rest } = parsed.data;
+  Object.assign(profile, rest);
+
+  if (engagementTypes) {
+    profile.engagementTypes = engagementTypes;
+    profile.engagementType =
+      engagementTypes.length === 2 ? "both" : engagementTypes[0]; // legacy mirror
+  }
+  if (onsiteRadiusKm !== undefined) {
+    profile.onsiteRadiusKm = onsiteRadiusKm;
+    profile.availabilityRadius = onsiteRadiusKm; // legacy mirror
+  }
+  if ((profile.engagementTypes || []).includes("onsite") && profile.country && profile.country !== "Canada") {
+    return sendError(res, "On-site sessions are only available in Canada", 400);
+  }
+  if (insuranceDeclared !== undefined && insuranceDeclared !== profile.insuranceDeclared) {
+    profile.insuranceDeclared = insuranceDeclared;
+    profile.insuranceDeclaredAt = insuranceDeclared ? new Date() : undefined;
+  }
+  if (certifications) {
+    // Any edit to credentials needs a fresh admin check before the licence is shown as verified
+    const unchanged = (a, b) => a.type === b.type && a.number === b.number && a.issuingBody === (b.issuingBody || b.body);
+    profile.certifications = certifications.map((cert) => {
+      const previous = profile.certifications.find((old) => unchanged(cert, old));
+      return { ...cert, body: cert.issuingBody, verified: Boolean(previous?.verified) };
+    });
+  }
   await profile.save();
 
   if (parsed.data.fullName || parsed.data.avatarUrl || parsed.data.bio || parsed.data.headline) {

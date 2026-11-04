@@ -5,7 +5,7 @@ import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useTheme } from "@/src/context/ThemeContext";
-import { ThemeColors } from "@/src/design-system/colors";
+import { ThemeColors, brand } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
@@ -36,7 +36,7 @@ const ROWS: NotifRow[] = [
     key: "requestUpdates",
     icon: "paper-plane-outline",
     label: "Request updates",
-    description: "Get notified when an expert accepts or declines your consultation request.",
+    description: "Get notified when an expert accepts or declines your session request.",
   },
   {
     key: "newMessages",
@@ -108,7 +108,7 @@ export default function NotificationsScreen() {
                 value={prefs[row.key]}
                 onValueChange={() => toggle(row.key)}
                 trackColor={{ false: colors.divider, true: colors.primary }}
-                thumbColor="#FFFFFF"
+                thumbColor={brand.onPrimary}
               />
             </View>
           ))}

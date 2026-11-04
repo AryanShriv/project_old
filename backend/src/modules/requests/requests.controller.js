@@ -3,16 +3,37 @@ const { z } = require("zod");
 const { sendSuccess, sendError } = require("../../utils/http");
 const Request = require("./request.model");
 const ExpertProfile = require("../experts/expert.model");
+const { expireRequest } = require("./requests.expiry");
+const User = require("../users/user.model");
+const { DISCLAIMER_VERSION, requiredDisclaimerIds } = require("../../constants/trust");
+const { sendPushToUser } = require("../../utils/push");
+const { sendEmail, templates } = require("../../utils/email");
 
-const createSchema = z.object({
-  expertId: z.string().trim().min(1),
-  projectTitle: z.string().trim().min(3).max(160).optional(),
-  description: z.string().trim().max(4000).optional(),
-  budget: z.number().min(0).optional(),
-  userMessage: z.string().trim().min(10).max(500).optional(),
-  engagementType: z.enum(["remote", "onsite", "both", "ongoing"]).optional(),
-  timingPreference: z.enum(["asap", "week", "month", "flexible"]).optional(),
-});
+// PRD 3.5 payload: expertId, headline, description, sessionType, timingPreference.
+// projectTitle / userMessage / engagementType are still accepted from older app builds.
+// Unknown keys (including the removed `budget`) are stripped by zod.
+const createSchema = z
+  .object({
+    expertId: z.string().trim().min(1),
+    headline: z.string().trim().min(3).max(100).optional(),
+    description: z.string().trim().min(50).max(500).optional(),
+    sessionType: z.enum(["remote", "onsite", "ongoing"]).optional(),
+    timingPreference: z.enum(["asap", "week", "month", "flexible"]).optional(),
+    // PRD 4.6: disclaimer ids the user ticked, and the version of the text they saw
+    acknowledgedDisclaimers: z.array(z.string().trim().min(1)).max(20).optional().default([]),
+    disclaimerVersion: z.string().trim().optional().default(""),
+
+    projectTitle: z.string().trim().min(3).max(160).optional(),
+    userMessage: z.string().trim().min(10).max(500).optional(),
+    engagementType: z.enum(["remote", "onsite", "both", "ongoing"]).optional(),
+  })
+  .refine((data) => data.headline || data.projectTitle || data.userMessage, {
+    message: "headline is required",
+    path: ["headline"],
+  });
+
+const toSessionType = (engagementType) =>
+  engagementType === "onsite" || engagementType === "ongoing" ? engagementType : "remote";
 
 const listSchema = z.object({
   role: z.enum(["user", "expert"]).optional(),
@@ -38,39 +59,50 @@ const createRequest = async (req, res) => {
     return sendError(res, "Invalid request payload", 400, parsed.error.flatten());
   }
 
-  const {
-    expertId,
-    projectTitle,
-    description = "",
-    budget = 0,
-    userMessage = "",
-    engagementType = "remote",
-    timingPreference = "flexible",
-  } = parsed.data;
+  const data = parsed.data;
+  const { expertId, timingPreference = "flexible" } = data;
+  const headline = data.headline || data.projectTitle || data.userMessage.substring(0, 100);
+  const description = data.description || data.userMessage || "";
+  const sessionType = data.sessionType || toSessionType(data.engagementType);
 
   if (!mongoose.isValidObjectId(expertId)) {
     return sendError(res, "Invalid expertId", 400);
   }
 
-  const expert = await ExpertProfile.findById(expertId).select("_id profileStatus");
+  const expert = await ExpertProfile.findById(expertId).select("_id profileStatus country domain categories skills");
   if (!expert) {
     return sendError(res, "Expert not found", 404);
   }
   if (expert.profileStatus !== "active") {
     return sendError(res, "Expert is not accepting requests", 400);
   }
+  // On-site sessions are only offered in Canada
+  if (sessionType === "onsite" && (expert.country || "").toLowerCase() !== "canada") {
+    return sendError(res, "On-site sessions are only available with experts in Canada", 400);
+  }
 
-  const finalTitle = projectTitle || userMessage.substring(0, 160) || "Untitled Request";
+  // Every disclaimer that applies to this expert and session type must be acknowledged
+  const required = requiredDisclaimerIds(expert, sessionType);
+  const acknowledged = new Set(data.acknowledgedDisclaimers);
+  const missing = required.filter((id) => !acknowledged.has(id));
+  if (missing.length > 0 || data.disclaimerVersion !== DISCLAIMER_VERSION) {
+    return sendError(res, "Please read and acknowledge the notes before sending your request", 400, { missing });
+  }
 
   const created = await Request.create({
     userId: req.auth.sub,
     expertId: expert._id,
-    projectTitle: finalTitle,
+    headline,
     description,
-    budget,
-    userMessage,
-    engagementType,
+    sessionType,
     timingPreference,
+    // Legacy mirrors for older app builds
+    projectTitle: headline,
+    userMessage: description,
+    engagementType: sessionType,
+    acknowledgedDisclaimers: required,
+    disclaimerVersion: DISCLAIMER_VERSION,
+    disclaimersAcknowledgedAt: new Date(),
     status: "pending",
   });
 
@@ -158,8 +190,7 @@ const updateRequestStatus = async (req, res) => {
   }
 
   if (requestDoc.status === "pending" && requestDoc.expiresAt && requestDoc.expiresAt < new Date()) {
-    requestDoc.status = "expired";
-    await requestDoc.save();
+    await expireRequest(requestDoc._id);
     return sendError(res, "Request has expired", 400);
   }
 
@@ -173,7 +204,14 @@ const updateRequestStatus = async (req, res) => {
   if (nextStatus === "accepted" || nextStatus === "rejected") {
     requestDoc.respondedAt = new Date();
   }
+  if (nextStatus === "completed") {
+    requestDoc.completedAt = new Date();
+  }
   await requestDoc.save();
+
+  if (nextStatus === "completed") {
+    await sendReviewPrompt(requestDoc);
+  }
 
   if (nextStatus === "accepted") {
     try {
@@ -209,6 +247,25 @@ const updateRequestStatus = async (req, res) => {
   }
 
   return sendSuccess(res, requestDoc, "Request status updated");
+};
+
+/** PRD 4.1: "How was your session with [Expert]?" by push and email, opening the review form. */
+const sendReviewPrompt = async (requestDoc) => {
+  const [expert, user] = await Promise.all([
+    ExpertProfile.findById(requestDoc.expertId).select("fullName").lean(),
+    User.findById(requestDoc.userId).select("email profile.fullName").lean(),
+  ]);
+  const expertName = expert?.fullName || "your expert";
+  const userFirstName = (user?.profile?.fullName || "").split(" ")[0] || "there";
+
+  await Promise.all([
+    sendPushToUser(requestDoc.userId, {
+      title: `How was your session with ${expertName}?`,
+      body: "Share what you learned. It takes a minute.",
+      data: { type: "review_prompt", requestId: requestDoc._id.toString() },
+    }),
+    sendEmail({ to: user?.email, ...templates.reviewPrompt({ userFirstName, expertName }) }),
+  ]);
 };
 
 module.exports = { createRequest, listRequests, updateRequestStatus };

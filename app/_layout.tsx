@@ -5,7 +5,7 @@ import { ExpertsProvider } from "@/src/context/ExpertsContext";
 import { RequestsProvider } from "@/src/context/RequestsContext";
 import { SavedProvider } from "@/src/context/SavedContext";
 import { ThemeProvider, useTheme } from "@/src/context/ThemeContext";
-import { configureNotificationHandler } from "@/src/services/notificationsService";
+import { configureNotificationHandler, subscribeToNotificationTaps } from "@/src/services/notificationsService";
 import {
     DMSans_400Regular,
     DMSans_500Medium,
@@ -19,7 +19,7 @@ import {
     Fraunces_900Black,
 } from "@expo-google-fonts/fraunces";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
@@ -31,6 +31,19 @@ configureNotificationHandler();
 
 function RootContent() {
   const { colors } = useTheme();
+
+  // Tapping a notification opens the screen it is about
+  useEffect(
+    () =>
+      subscribeToNotificationTaps((data) => {
+        if (data.type === "review_prompt" && data.requestId) {
+          router.push({ pathname: "/(user)/(tabs)/requests", params: { review: data.requestId } });
+        } else if (data.type === "request_expired") {
+          router.push("/(user)/(tabs)/requests");
+        }
+      }),
+    []
+  );
 
   return (
     <Stack>
@@ -56,7 +69,7 @@ function RootContent() {
       <Stack.Screen
         name="booking/[id]"
         options={{
-          title: "Consultation Request",
+          title: "Request a Session",
           headerShadowVisible: false,
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.textPrimary,

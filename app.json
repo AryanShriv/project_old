@@ -7,7 +7,6 @@
     "icon": "./assets/2AM.png",
     "scheme": "projectold",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -16,11 +15,9 @@
         "backgroundColor": "#1C1C18",
         "foregroundImage": "./assets/2AM.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "pan",
-      "package": "com.aryanshriv.project_old",
-      "networkSecurityConfig": "android/app/src/main/res/xml/network_security_config.xml"
+      "package": "com.aryanshriv.project_old"
     },
     "web": {
       "output": "static",
@@ -49,7 +46,10 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-image",
+      "expo-web-browser",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,

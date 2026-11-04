@@ -1,5 +1,5 @@
 import type { Href } from "expo-router";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
     FlatList,
@@ -16,24 +16,14 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useExperts } from "@/src/context/ExpertsContext";
 import { useRequests } from "@/src/context/RequestsContext";
 import { useTheme } from "@/src/context/ThemeContext";
-import { ThemeColors } from "@/src/design-system/colors";
+import { ThemeColors, brand } from "@/src/design-system/colors";
 import { radius } from "@/src/design-system/radius";
 import { shadows } from "@/src/design-system/shadows";
 import { minTapTarget, spacing } from "@/src/design-system/spacing";
 import { typography } from "@/src/design-system/typography";
+import { SESSION_TYPE_LABELS, STATUS_LABELS, TIMING_LABELS, statusBadgeColors } from "@/src/constants/requests";
 import type { Request } from "@/src/types/requests";
 import { ReviewModal } from "@/src/components/ReviewModal/ReviewModal";
-
-function statusStyle(status: Request["status"], colors: ThemeColors) {
-  switch (status) {
-    case "accepted":
-      return { bg: colors.successMuted, fg: colors.success };
-    case "rejected":
-      return { bg: colors.errorMuted, fg: colors.error };
-    default:
-      return { bg: colors.primaryMuted, fg: colors.primary };
-  }
-}
 
 export default function UserRequestsScreen() {
   const { user } = useAuth();
@@ -42,6 +32,16 @@ export default function UserRequestsScreen() {
   const { colors } = useTheme();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRequestForReview, setSelectedRequestForReview] = useState<Request | null>(null);
+  // A review-prompt notification opens this tab with ?review=<requestId> (PRD 4.1)
+  const { review: reviewParam } = useLocalSearchParams<{ review?: string }>();
+  const promptedRequest = reviewParam
+    ? requests.find((r) => r.id === reviewParam && r.status === "completed" && !r.reviewedAt)
+    : undefined;
+  const reviewing = selectedRequestForReview ?? promptedRequest ?? null;
+  const closeReview = () => {
+    setSelectedRequestForReview(null);
+    if (reviewParam) router.setParams({ review: undefined });
+  };
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleRefresh = async () => {
@@ -59,14 +59,14 @@ export default function UserRequestsScreen() {
           <EmptyState
             icon="lock-closed-outline"
             title="Sign in to track requests"
-            subtitle="Log in as a client to see consultation requests you have sent."
+            subtitle="Sign in to see the session requests you have sent."
           />
           <Pressable
             style={styles.primaryBtn}
             onPress={() =>
               router.push({
                 pathname: "/(auth)/login",
-                params: { intent: "client" },
+                params: { intent: "user" },
               } as Href)
             }
           >
@@ -83,7 +83,7 @@ export default function UserRequestsScreen() {
         <EmptyState
           icon="paper-plane-outline"
           title="No requests yet"
-          subtitle="When you send a consultation request from a profile, it will show up here."
+          subtitle="When you request a session from an expert's profile, it will show up here."
         />
       </SafeAreaView>
     );
@@ -93,7 +93,7 @@ export default function UserRequestsScreen() {
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={styles.header}>
         <Text style={styles.title}>Requests</Text>
-        <Text style={styles.subtitle}>Track your consultation outreach</Text>
+        <Text style={styles.subtitle}>Your session requests and their status</Text>
       </View>
       <FlatList
         contentContainerStyle={styles.list}
@@ -101,7 +101,7 @@ export default function UserRequestsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const expert = getExpert(item.expertId);
-          const badge = statusStyle(item.status, colors);
+          const badge = statusBadgeColors(item.status, colors);
 
           return (
             <View style={styles.card}>
@@ -111,28 +111,30 @@ export default function UserRequestsScreen() {
                 </Text>
                 <View style={[styles.badge, { backgroundColor: badge.bg }]}>
                   <Text style={[styles.badgeText, { color: badge.fg }]}>
-                    {item.status}
+                    {STATUS_LABELS[item.status]}
                   </Text>
                 </View>
               </View>
-              <Text style={styles.projectTitle} numberOfLines={2}>{item.projectTitle || item.userMessage}</Text>
-              {(item.engagementType || item.timingPreference) && (
-                <Text style={[styles.meta, { marginBottom: 4 }]}>
-                  {[
-                    item.engagementType === "onsite" ? "On-site" : item.engagementType === "remote" ? "Remote" : item.engagementType,
-                    item.timingPreference
-                  ].filter(Boolean).join(" • ")}
-                </Text>
-              )}
+              <Text style={styles.projectTitle} numberOfLines={2}>{item.headline}</Text>
+              <Text style={[styles.meta, { marginBottom: 4 }]}>
+                {[
+                  SESSION_TYPE_LABELS[item.sessionType],
+                  item.timingPreference ? TIMING_LABELS[item.timingPreference] : null,
+                ].filter(Boolean).join(" • ")}
+              </Text>
               {expert?.title ? (
                 <Text style={styles.meta}>{expert.title}</Text>
               ) : null}
-              {(item.status === "completed") && (
+              {/* Reviews come only from completed sessions, once each (PRD 4.1) */}
+              {item.status === "completed" && item.reviewedAt && (
+                <Text style={[styles.meta, { marginTop: 12 }]}>Thank you, you reviewed this session.</Text>
+              )}
+              {item.status === "completed" && !item.reviewedAt && (
                 <Pressable
                   style={[styles.btn, styles.btnPrimary, { marginTop: 12 }]}
                   onPress={() => setSelectedRequestForReview(item)}
                 >
-                  <Text style={styles.btnPrimaryText}>Write a Review</Text>
+                  <Text style={styles.btnPrimaryText}>Review this session</Text>
                 </Pressable>
               )}
             </View>
@@ -149,12 +151,13 @@ export default function UserRequestsScreen() {
         }
       />
 
-      {selectedRequestForReview && (
+      {reviewing && (
         <ReviewModal
-          visible={!!selectedRequestForReview}
-          expertId={selectedRequestForReview.expertId}
-          requestId={selectedRequestForReview.id}
-          onClose={() => setSelectedRequestForReview(null)}
+          visible
+          expertId={reviewing.expertId}
+          expertName={getExpert(reviewing.expertId)?.name}
+          requestId={reviewing.id}
+          onClose={closeReview}
           onSuccess={() => {
             refreshRequests();
           }}
@@ -185,7 +188,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   primaryBtnText: {
     ...typography.button,
-    color: "#FFFFFF",
+    color: brand.onPrimary,
   },
   header: {
     paddingHorizontal: spacing.md,
@@ -243,7 +246,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   btnPrimaryText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#fff",
+    color: brand.onPrimary,
   },
   badgeText: {
     ...typography.labelSmall,
