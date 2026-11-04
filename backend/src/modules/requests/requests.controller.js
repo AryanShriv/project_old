@@ -8,6 +8,7 @@ const User = require("../users/user.model");
 const { DISCLAIMER_VERSION, requiredDisclaimerIds } = require("../../constants/trust");
 const { templates } = require("../../utils/email");
 const { notify, firstNameOf } = require("../../utils/notify");
+const env = require("../../config/env");
 
 // PRD 3.5 payload: expertId, headline, description, sessionType, timingPreference.
 // projectTitle / userMessage / engagementType are still accepted from older app builds.
@@ -67,6 +68,15 @@ const createRequest = async (req, res) => {
 
   if (!mongoose.isValidObjectId(expertId)) {
     return sendError(res, "Invalid expertId", 400);
+  }
+
+  if (env.emailVerificationRequired) {
+    const requester = await User.findById(req.auth.sub).select("emailVerifiedAt").lean();
+    if (!requester?.emailVerifiedAt) {
+      return sendError(res, "Please verify your email before requesting a session. Check your inbox for a 6-digit code.", 403, {
+        emailNotVerified: true,
+      });
+    }
   }
 
   const expert = await ExpertProfile.findById(expertId).select(

@@ -19,6 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
+import { VerifyEmailNotice } from "@/src/components/VerifyEmailNotice/VerifyEmailNotice";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { ThemeColors, brand } from "@/src/design-system/colors";
@@ -195,6 +196,7 @@ export default function UserProfileScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+        <VerifyEmailNotice />
         {/* ─── Hero / Avatar ─── */}
         <View style={styles.hero}>
           <View style={styles.avatar}>
@@ -492,6 +494,9 @@ export default function UserProfileScreen() {
           }}
         >
           <Text style={styles.logoutText}>Log out</Text>
+        </Pressable>
+        <Pressable style={styles.deleteRow} onPress={() => router.push("/delete-account" as Href)} accessibilityRole="button">
+          <Text style={styles.deleteText}>Delete account</Text>
         </Pressable>
       </ScrollView>
       </KeyboardAvoidingView>
@@ -804,5 +809,16 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 16,
       fontWeight: "600",
       color: colors.textSecondary,
+    },
+    deleteRow: {
+      marginTop: spacing.sm,
+      minHeight: 48,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    deleteText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.error,
     },
   });

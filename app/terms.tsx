@@ -59,12 +59,15 @@ If you do not agree, do not use the Platform.
 - Do not create more than one account per person
 
 5.2 Email Verification
-All accounts require email verification before becoming active.
+We send a 6-digit code to the email address you sign up with. You need a verified email to request a session, and Experts need one before their profile can be approved.
 
-5.3 Account Responsibility
+5.3 Forgotten Password
+You can reset your password with a code sent to your email. Resetting it signs you out on all other devices.
+
+5.4 Account Responsibility
 You are responsible for account activity. Report compromise to security@gold.com.
 
-5.4 Eligibility
+5.5 Eligibility
 Available to residents of Canada (Ontario) and India.
 
 6. Expert Terms
@@ -146,7 +149,7 @@ Expert-created materials remain Expert IP unless transferred in writing.
 No fake accounts, impersonation, scraping, hacking, illegal activity, harassment, discrimination, or abuse.
 
 15. Suspension and Termination
-Users may close account via support@gold.com.
+You can delete your account at any time in the app (Profile, then Delete account). We then erase your personal details and cancel your open requests. Reviews and messages you wrote stay visible to the people they were for, shown as from a "Former member". We keep a record of the Terms you accepted, as the law requires.
 We may suspend/terminate for violations, false info, risk, or certification issues.
 
 16. Disputes Between Users

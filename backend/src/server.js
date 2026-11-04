@@ -7,6 +7,7 @@ const { initSocketServer } = require("./config/socketServer");
 const { startRequestExpiryJob } = require("./modules/requests/requests.expiry");
 const { startUnreadMessageEmailJob } = require("./modules/chat/chat.notifications");
 const { ensureAvailabilityExpertId } = require("./migrations/availability-expert-id");
+const { ensureEmailVerifiedBackfill } = require("./migrations/email-verified-backfill");
 
 const start = async () => {
   try {
@@ -14,6 +15,8 @@ const start = async () => {
     await ensureAdminUser();
     // Keeps availability data in step with the code (freelancerId -> expertId); a no-op once done
     await ensureAvailabilityExpertId();
+    // Accounts from before email verification count as verified; a no-op once done
+    await ensureEmailVerifiedBackfill();
     const server = http.createServer(app);
     initSocketServer(server);
     startRequestExpiryJob();

@@ -11,6 +11,10 @@ export type AuthUser = {
   rejectionReason?: string;
   /** How many times a rejected application was resubmitted; only one is allowed */
   resubmissionCount?: number;
+  /** Has this person entered the code we emailed them? */
+  emailVerified?: boolean;
+  /** Does the server enforce verification (only once it can deliver email)? */
+  emailVerificationRequired?: boolean;
   /** Extended profile fields */
   profile?: {
     fullName?: string;

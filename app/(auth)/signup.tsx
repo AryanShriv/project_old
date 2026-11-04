@@ -204,8 +204,12 @@ export default function SignupScreen() {
         setError(result.message);
         return;
       }
-      // New experts land on their dashboard, which explains that the application is being reviewed.
-      // New users go back to the expert they were looking at, if any (PRD 5.3).
+      // First, the 6-digit code we just emailed (skippable). Then new experts land on their dashboard,
+      // and new users go back to the expert they were looking at, if any (PRD 5.3).
+      if (result.needsEmailVerification) {
+        router.replace({ pathname: "/verify-email", params: { afterSignup: "1", ...reentry } });
+        return;
+      }
       finishAuth(isExpert ? "expert" : "user", reentry);
     } finally {
       setSubmitting(false);

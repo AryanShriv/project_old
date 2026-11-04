@@ -6,6 +6,7 @@ const User = require("../users/user.model");
 const ExpertProfile = require("../experts/expert.model");
 const AuditLog = require("./audit-log.model");
 const { isRegulatedTrade } = require("../../constants/trust");
+const env = require("../../config/env");
 const { templates } = require("../../utils/email");
 const { notify } = require("../../utils/notify");
 
@@ -135,6 +136,15 @@ const reviewApplication = async (req, res) => {
     return sendError(res, "Expert profile not found", 404);
   }
 
+  if (decision === "approved" && env.emailVerificationRequired) {
+    const applicant = await User.findById(application.applicantUserId).select("emailVerifiedAt").lean();
+    if (!applicant?.emailVerifiedAt) {
+      return sendError(res, "This expert hasn't verified their email yet, so they can't be approved.", 400, {
+        emailNotVerified: true,
+      });
+    }
+  }
+
   if (decision === "approved") {
     const required = approvalRequirements(profile);
     const missing = Object.keys(required).filter((key) => required[key] && !checklist[key]);
@@ -211,7 +221,7 @@ const reviewApplication = async (req, res) => {
  * reactivate them (the public /experts list only shows active profiles).
  */
 const listExpertsForAdmin = async (req, res) => {
-  const items = await ExpertProfile.find({ approvalStatus: "approved" })
+  const items = await ExpertProfile.find({ approvalStatus: "approved", profileStatus: { $ne: "deleted" } })
     .select("userId fullName headline domain city country profileStatus founderBadge reviewCount recommendPercentage")
     .sort({ fullName: 1 })
     .lean();

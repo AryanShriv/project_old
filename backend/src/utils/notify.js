@@ -27,8 +27,8 @@ const firstNameOf = (fullName, fallback = "there") => (fullName || "").trim().sp
  */
 const notify = async (userId, { kind, push, email }) => {
   try {
-    const user = await User.findById(userId).select("email profile.fullName notificationPrefs").lean();
-    if (!user) return;
+    const user = await User.findById(userId).select("email profile.fullName notificationPrefs accountStatus").lean();
+    if (!user || user.accountStatus === "deleted") return;
 
     const pref = PREF_FOR[kind];
     if (pref && user.notificationPrefs?.[pref] === false) return;

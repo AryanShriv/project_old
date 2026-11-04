@@ -560,6 +560,9 @@ export default function ExpertProfileTabScreen() {
         >
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
+        <Pressable style={styles.deleteRow} onPress={() => router.push("/delete-account" as Href)} accessibilityRole="button">
+          <Text style={styles.deleteText}>Delete account</Text>
+        </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -838,6 +841,17 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 16,
       fontWeight: "600",
       color: colors.textSecondary,
+    },
+    deleteRow: {
+      marginTop: spacing.sm,
+      minHeight: 48,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    deleteText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.error,
     },
     itemEditorCard: {
       backgroundColor: colors.background,

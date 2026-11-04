@@ -18,4 +18,10 @@ const env = {
   emailFrom: process.env.EMAIL_FROM || "G(Old) <hello@example.com>",
 };
 
+// Email verification is enforced only when emails can actually be delivered: without a Resend key
+// nobody could receive their code. REQUIRE_EMAIL_VERIFICATION=true|false overrides this.
+env.emailVerificationRequired = process.env.REQUIRE_EMAIL_VERIFICATION
+  ? process.env.REQUIRE_EMAIL_VERIFICATION === "true"
+  : Boolean(env.resendApiKey);
+
 module.exports = env;

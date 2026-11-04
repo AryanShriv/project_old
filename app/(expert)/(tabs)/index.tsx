@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
 import { SESSION_TYPE_LABELS, TIMING_LABELS } from "@/src/constants/requests";
+import { VerifyEmailNotice } from "@/src/components/VerifyEmailNotice/VerifyEmailNotice";
 import { useAuth } from "@/src/context/AuthContext";
 import { useExperts } from "@/src/context/ExpertsContext";
 import { useRequests } from "@/src/context/RequestsContext";
@@ -91,6 +92,8 @@ export default function ExpertDashboardScreen() {
         <Text style={styles.title}>
           {greeting}{firstName ? `, ${firstName}` : ""}
         </Text>
+
+        <VerifyEmailNotice />
 
         {(isPendingApproval || isRejected) && (
           <View style={styles.banner}>

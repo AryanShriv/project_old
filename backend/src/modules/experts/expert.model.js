@@ -60,7 +60,7 @@ const expertSchema = new mongoose.Schema(
     isAvailable: { type: Boolean, default: true, index: true },
     profileStatus: {
       type: String,
-      enum: ["active", "pending_review", "suspended"],
+      enum: ["active", "pending_review", "suspended", "deleted"],
       default: "pending_review",
       index: true,
     },

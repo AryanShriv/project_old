@@ -36,7 +36,18 @@ type AuthContextType = {
     password: string,
   ) => Promise<{ ok: true; role: AuthRoleIntent } | { ok: false; message: string }>;
   /** Experts are signed in straight away; their dashboard shows that the application is under review */
-  register: (input: RegisterInput) => Promise<{ ok: true } | { ok: false; message: string }>;
+  register: (
+    input: RegisterInput,
+  ) => Promise<{ ok: true; needsEmailVerification: boolean } | { ok: false; message: string }>;
+  /** Email a new 6-digit verification code to the signed-in person */
+  sendVerificationCode: () => Promise<void>;
+  /** Check the code; updates the session when it's right, throws with the reason when not */
+  verifyEmail: (code: string) => Promise<void>;
+  /** Email a password reset code (the answer is the same whether or not the email has an account) */
+  requestPasswordReset: (email: string) => Promise<string>;
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<string>;
+  /** Delete the signed-in account after confirming the password, then sign out on this device */
+  deleteAccount: (password: string) => Promise<void>;
   /** Throws with the backend message (e.g. checklist incomplete) so the admin sees why */
   reviewApplication: (
     id: string,
@@ -72,6 +83,8 @@ type BackendAuthUser = {
   approvalStatus?: "pending" | "approved" | "rejected";
   rejectionReason?: string;
   resubmissionCount?: number;
+  emailVerified?: boolean;
+  emailVerificationRequired?: boolean;
   profile?: {
     fullName?: string;
     bio?: string;
@@ -159,6 +172,9 @@ const toSessionUser = (data: BackendAuthUser): AuthUser => ({
   approvalStatus: data.approvalStatus,
   rejectionReason: data.rejectionReason,
   resubmissionCount: data.resubmissionCount ?? 0,
+  // Older servers don't send these; treat their accounts as verified
+  emailVerified: data.emailVerified ?? true,
+  emailVerificationRequired: data.emailVerificationRequired ?? false,
   profile: data.profile,
 });
 
@@ -408,10 +424,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           },
         });
         await persistTokens(data.accessToken, data.refreshToken);
-        await persistSession(toSessionUser(data.user));
+        const sessionUser = toSessionUser(data.user);
+        await persistSession(sessionUser);
         // Register device token for push notifications (non-blocking).
         registerPushToken();
-        return { ok: true as const };
+        return {
+          ok: true as const,
+          needsEmailVerification: Boolean(sessionUser.emailVerificationRequired && !sessionUser.emailVerified),
+        };
       } catch (error) {
         return { ok: false as const, message: (error as Error).message || "Registration failed" };
       }
@@ -483,6 +503,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await refreshUser();
   }, [refreshUser]);
 
+  const sendVerificationCode = useCallback(async () => {
+    await apiRequest("/auth/verify-email/send", { method: "POST", auth: true });
+  }, []);
+
+  const verifyEmail = useCallback(
+    async (code: string) => {
+      const data = await apiRequest<{ user: BackendAuthUser }>("/auth/verify-email", {
+        method: "POST",
+        auth: true,
+        body: { code },
+      });
+      await persistSession(toSessionUser(data.user));
+    },
+    [persistSession],
+  );
+
+  const requestPasswordReset = useCallback(async (email: string) => {
+    await apiRequest("/auth/forgot-password", { method: "POST", body: { email: email.trim().toLowerCase() } });
+    return "If that email has a G(Old) account, we've sent a 6-digit code to it.";
+  }, []);
+
+  const resetPassword = useCallback(async (email: string, code: string, newPassword: string) => {
+    await apiRequest("/auth/reset-password", {
+      method: "POST",
+      body: { email: email.trim().toLowerCase(), code: code.trim(), newPassword },
+    });
+    return "Your password has been changed. Please sign in with your new password.";
+  }, []);
+
+  const deleteAccount = useCallback(
+    async (password: string) => {
+      // Remove this device's push token first, while the account still exists
+      await unregisterPushToken();
+      await apiRequest("/users/me", { method: "DELETE", auth: true, body: { password } });
+      await clearTokens();
+      await persistSession(null);
+    },
+    [persistSession],
+  );
+
   const logout = useCallback(async () => {
     // Remove push token before clearing auth so the DELETE request still has a valid token.
     await unregisterPushToken();
@@ -504,6 +564,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       expertStatus,
       login,
       register,
+      sendVerificationCode,
+      verifyEmail,
+      requestPasswordReset,
+      resetPassword,
+      deleteAccount,
       reviewApplication,
       resubmitApplication,
       setExpertAccountStatus,
@@ -522,6 +587,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       expertStatus,
       login,
       register,
+      sendVerificationCode,
+      verifyEmail,
+      requestPasswordReset,
+      resetPassword,
+      deleteAccount,
       reviewApplication,
       resubmitApplication,
       setExpertAccountStatus,

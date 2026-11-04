@@ -1,7 +1,9 @@
 const { z } = require("zod");
 const { sendSuccess, sendError } = require("../../utils/http");
 const User = require("./user.model");
+const bcrypt = require("bcryptjs");
 const { buildAuthUserPayload } = require("../auth/auth.utils");
+const { deleteAccount } = require("./account-deletion");
 
 const updateProfileSchema = z
   .object({
@@ -81,5 +83,25 @@ const updateNotificationPrefs = async (req, res) => {
   return sendSuccess(res, { ...PREF_DEFAULTS, ...user.notificationPrefs }, "Notification settings saved");
 };
 
-module.exports = { getMe, updateMe, getNotificationPrefs, updateNotificationPrefs };
+const deleteSchema = z.object({ password: z.string().min(1, "Please enter your password to confirm") });
+
+/** DELETE /users/me { password }: deletes the signed-in account (see account-deletion.js) */
+const deleteMe = async (req, res) => {
+  const parsed = deleteSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return sendError(res, parsed.error.issues[0].message, 400);
+
+  const user = await User.findById(req.auth.sub);
+  if (!user || user.accountStatus === "deleted") return sendError(res, "Unauthorized", 401);
+  if (user.role === "admin") {
+    return sendError(res, "Admin accounts can't be deleted from the app. Please ask another admin.", 403);
+  }
+  if (!(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
+    return sendError(res, "That password isn't right.", 400);
+  }
+
+  await deleteAccount(user);
+  return sendSuccess(res, { deleted: true }, "Your account has been deleted");
+};
+
+module.exports = { getMe, updateMe, getNotificationPrefs, updateNotificationPrefs, deleteMe };
 

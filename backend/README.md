@@ -73,6 +73,25 @@ Transactional email goes through [Resend](https://resend.com) (`src/utils/email.
 `EMAIL_FROM` (an address on a domain verified in Resend). Without a key, emails are printed to the console, so
 local development and tests never send real mail.
 
+## Accounts: email verification, forgot password, delete account
+
+All three use six-digit codes sent by email (`modules/auth/auth.codes.js`): stored hashed, valid for 15 minutes,
+used up after 5 wrong tries, and re-sendable once a minute.
+
+- **Email verification.** Sign-up emails a code; `POST /auth/verify-email { code }` confirms it and
+  `POST /auth/verify-email/send` sends a new one. A verified email is required to send a request and for an expert
+  to be approved. **This is enforced only when email can be delivered**, i.e. when `RESEND_API_KEY` is set
+  (override with `REQUIRE_EMAIL_VERIFICATION=true|false`). The auth payload carries `emailVerified` and
+  `emailVerificationRequired` so the app knows when to ask. Accounts from before this existed are marked verified on
+  server start (`migrations/email-verified-backfill.js`).
+- **Forgot password.** `POST /auth/forgot-password { email }` answers the same whether or not the email has an
+  account. `POST /auth/reset-password { email, code, newPassword }` changes the password, signs out every device,
+  and marks the email verified.
+- **Delete account.** `DELETE /users/me { password }` (users and experts; not admins). Erases personal details,
+  frees the email, cancels open requests, removes saved experts and availability, and takes an expert's profile
+  down (`profileStatus: "deleted"`). Reviews and messages stay, shown as from a "Former member"; the Terms
+  acceptance timestamps are kept as a legal record. See `modules/users/account-deletion.js`.
+
 ## Notifications (PRD 5.2)
 
 Every event goes out by push and email through `notify()` in `src/utils/notify.js`. Use it for new notifications;

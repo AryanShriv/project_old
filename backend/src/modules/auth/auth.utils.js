@@ -20,6 +20,9 @@ const toAuthUser = (user) => ({
   role: user.role,
   accountStatus: user.accountStatus,
   profile: user.profile,
+  emailVerified: Boolean(user.emailVerifiedAt),
+  // Whether this server enforces verification (only once emails can be delivered)
+  emailVerificationRequired: env.emailVerificationRequired && user.role !== "admin",
 });
 
 const buildAuthUserPayload = async (user) => {

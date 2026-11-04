@@ -1,5 +1,6 @@
 // app/booking/[id].tsx — "Request a Session" (PRD 3.5). The screen title comes from the root Stack.
 
+import { VerifyEmailNotice, useNeedsEmailVerification } from "@/src/components/VerifyEmailNotice/VerifyEmailNotice";
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
@@ -51,6 +52,7 @@ export default function RequestSessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getById, isLoading } = useExperts();
   const { addRequest } = useRequests();
+  const needsEmailVerification = useNeedsEmailVerification();
   const expert = getById(id);
 
   const [headline, setHeadline] = useState('');
@@ -83,7 +85,8 @@ export default function RequestSessionScreen() {
     descriptionLength >= DESCRIPTION_MIN &&
     sessionType !== null &&
     timing !== null &&
-    allAcknowledged;
+    allAcknowledged &&
+    !needsEmailVerification;
 
   const handleSubmit = async () => {
     if (!isValid || !expert || submitting || !sessionType || !timing) return;
@@ -269,6 +272,7 @@ export default function RequestSessionScreen() {
 
       {/* Sticky submit */}
       <View style={styles.footer}>
+        <VerifyEmailNotice message="Please confirm your email before sending a request. It only takes a minute." />
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={!isValid || submitting}

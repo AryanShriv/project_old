@@ -18,6 +18,7 @@ export default function AuthLayout() {
       <Stack.Screen name="login" options={{ headerShown: false }} />
       {/* Signup has its own back button that steps back through the form */}
       <Stack.Screen name="signup" options={{ headerShown: false }} />
+      <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
     </Stack>
   );
 }

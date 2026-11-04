@@ -52,6 +52,22 @@ const templates = {
     subject: `How was your session with ${expertName}?`,
     text: `Hi ${userFirstName},\n\n${expertName} has marked your session as complete. We'd love to hear what you learned. It takes a minute, and it helps others find the right person.\n\nOpen the G(Old) app and go to Requests to share your thoughts.\n\n${SIGN_OFF}`,
   }),
+  verifyEmail: ({ firstName, code }) => ({
+    subject: `${code} is your G(Old) verification code`,
+    text: `Hi ${firstName},\n\nWelcome to G(Old). To confirm this is your email address, enter this code in the app:\n\n${code}\n\nThe code works for 15 minutes. If you didn't create a G(Old) account, you can ignore this email.\n\n${SIGN_OFF}`,
+  }),
+  passwordReset: ({ firstName, code }) => ({
+    subject: `${code} is your G(Old) password reset code`,
+    text: `Hi ${firstName},\n\nWe received a request to reset your G(Old) password. Enter this code in the app to choose a new one:\n\n${code}\n\nThe code works for 15 minutes. If you didn't ask for this, you can ignore this email: your password stays the same.\n\n${SIGN_OFF}`,
+  }),
+  passwordChanged: ({ firstName }) => ({
+    subject: "Your G(Old) password was changed",
+    text: `Hi ${firstName},\n\nYour G(Old) password has just been changed, and you have been signed out on your other devices.\n\nIf this wasn't you, please reply to this email straight away so we can help secure your account.\n\n${SIGN_OFF}`,
+  }),
+  accountDeleted: ({ firstName }) => ({
+    subject: "Your G(Old) account has been deleted",
+    text: `Hi ${firstName},\n\nAs you asked, we have deleted your G(Old) account and erased your personal details. Reviews and messages you wrote stay visible to the people they were for, shown as from a "Former member".\n\nThank you for being part of G(Old). You are welcome back any time.\n\n${SIGN_OFF}`,
+  }),
   newRequest: ({ expertFirstName, userName, headline }) => ({
     subject: `New session request from ${userName}`,
     text: `Hi ${expertFirstName},

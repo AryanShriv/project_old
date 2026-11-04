@@ -31,12 +31,14 @@ export default function LoginScreen() {
     intent?: string;
     returnTo?: string;
     origin?: string;
+    /** Filled in after a password reset */
+    email?: string;
   }>();
 
   const intentParam =
     typeof params.intent === "string" ? params.intent : undefined;
   const isAdminEntry = Platform.OS === "web" && intentParam === "admin";
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(typeof params.email === "string" ? params.email : "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -134,6 +136,13 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
           </View>
+          <Pressable
+            style={styles.forgotRow}
+            onPress={() => router.push({ pathname: "/(auth)/forgot-password", params: { email: email.trim() } })}
+            accessibilityRole="link"
+          >
+            <Text style={styles.passwordToggleText}>Forgot your password?</Text>
+          </Pressable>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -221,6 +230,12 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.textPrimary,
     backgroundColor: colors.surface,
     marginBottom: spacing.sm,
+  },
+  forgotRow: {
+    alignSelf: "flex-end",
+    minHeight: 48,
+    justifyContent: "center",
+    marginBottom: spacing.xs,
   },
   passwordWrap: {
     position: "relative",
